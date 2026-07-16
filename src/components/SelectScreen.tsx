@@ -13,6 +13,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   ARENAS,
   FIGHTERS,
+  SHARE_DEFAULT_ARENA,
   type ArenaId,
   type FighterKit,
   type FrogId,
@@ -23,29 +24,46 @@ import { colors, fonts } from '../theme';
 
 type Props = {
   onBack: () => void;
-  onConfirm: (player: FrogId, rival: FrogId, arena: ArenaId) => void;
+  onConfirm: (
+    player: FrogId | 'custom',
+    rival: FrogId,
+    arena: ArenaId,
+    kit?: FighterKit,
+  ) => void;
+  customKit?: FighterKit | null;
+  onCreate: () => void;
 };
 
-export function SelectScreen({ onBack, onConfirm }: Props) {
+export function SelectScreen({ onBack, onConfirm, customKit, onCreate }: Props) {
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
-  const [picked, setPicked] = useState<FrogId>('peaches');
-  const [arena, setArena] = useState<ArenaId>('candyDohyo');
+  const [picked, setPicked] = useState<FrogId | 'custom'>(
+    customKit ? 'custom' : 'peaches',
+  );
+  const [arena, setArena] = useState<ArenaId>(SHARE_DEFAULT_ARENA);
   const cardW = Math.min(100, (width - 48) / 3 - 8);
 
-  const selected = FIGHTERS.find((f) => f.frogId === picked)!;
+  const selected: FighterKit =
+    picked === 'custom' && customKit
+      ? customKit
+      : FIGHTERS.find((f) => f.frogId === picked) ?? FIGHTERS[0];
   const arenaKit = ARENAS.find((a) => a.id === arena)!;
 
   const confirm = () => {
     Sfx.uiTap();
-    const rivals = FIGHTERS.filter((f) => f.frogId !== picked);
+    const rivals = FIGHTERS.filter((f) => f.frogId !== selected.frogId || selected.frogId === 'custom');
     const rival = rivals[Math.floor(Math.random() * rivals.length)];
-    onConfirm(picked, rival.frogId, arena);
+    onConfirm(
+      picked === 'custom' ? 'custom' : selected.frogId,
+      rival.frogId,
+      arena,
+      picked === 'custom' ? customKit ?? undefined : undefined,
+    );
   };
 
   return (
     <LinearGradient
-      colors={[colors.skyCute, '#FFD6E0', colors.sand]}
+      colors={['#1A1028', '#3A1840', '#FF8FAB']}
       style={[
         styles.root,
         {
@@ -59,7 +77,7 @@ export function SelectScreen({ onBack, onConfirm }: Props) {
       </Pressable>
 
       <Text style={styles.title}>pick your cheeks</Text>
-      <Text style={styles.sub}>then pick a ridiculous arena</Text>
+      <Text style={styles.sub}>disco default · clip-ready arenas</Text>
 
       <View style={styles.hero}>
         <Image
@@ -76,6 +94,18 @@ export function SelectScreen({ onBack, onConfirm }: Props) {
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.row}
       >
+        {customKit ? (
+          <FighterCard
+            kit={customKit}
+            width={cardW}
+            selected={picked === 'custom'}
+            onPress={() => {
+              Sfx.uiTap();
+              setPicked('custom');
+            }}
+            badge="YOU"
+          />
+        ) : null}
         {FIGHTERS.map((f) => (
           <FighterCard
             key={f.frogId}
@@ -89,6 +119,12 @@ export function SelectScreen({ onBack, onConfirm }: Props) {
           />
         ))}
       </ScrollView>
+
+      <Pressable onPress={onCreate} style={styles.createLink}>
+        <Text style={styles.createLinkText}>
+          {customKit ? 'edit your frog' : '+ build a custom dump truck'}
+        </Text>
+      </Pressable>
 
       <Text style={styles.arenaLabel}>arena</Text>
       <ScrollView
@@ -130,11 +166,13 @@ function FighterCard({
   width,
   selected,
   onPress,
+  badge,
 }: {
   kit: FighterKit;
   width: number;
   selected: boolean;
   onPress: () => void;
+  badge?: string;
 }) {
   return (
     <Pressable
@@ -146,6 +184,7 @@ function FighterCard({
         style={styles.cardImg}
         resizeMode="cover"
       />
+      {badge ? <Text style={styles.badge}>{badge}</Text> : null}
       <Text style={styles.cardName}>{kit.name}</Text>
     </Pressable>
   );
@@ -158,21 +197,21 @@ const styles = StyleSheet.create({
   },
   back: {
     fontFamily: fonts.body,
-    color: colors.ink,
-    opacity: 0.7,
+    color: colors.cream,
+    opacity: 0.75,
     fontSize: 15,
     marginBottom: 4,
   },
   title: {
     fontFamily: fonts.display,
     fontSize: 30,
-    color: colors.ink,
+    color: colors.blush,
     textAlign: 'center',
   },
   sub: {
     fontFamily: fonts.body,
     fontSize: 14,
-    color: colors.ink,
+    color: colors.cream,
     opacity: 0.6,
     textAlign: 'center',
     marginBottom: 8,
@@ -181,13 +220,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flexShrink: 1,
     justifyContent: 'center',
-    minHeight: 140,
+    minHeight: 130,
   },
   heroImg: {
-    width: 160,
-    height: 160,
+    width: 150,
+    height: 150,
     borderRadius: 24,
-    backgroundColor: colors.cream,
+    backgroundColor: 'rgba(255,248,240,0.12)',
   },
   name: {
     marginTop: 8,
@@ -198,8 +237,8 @@ const styles = StyleSheet.create({
   tag: {
     fontFamily: fonts.body,
     fontSize: 13,
-    color: colors.ink,
-    opacity: 0.65,
+    color: colors.cream,
+    opacity: 0.7,
     marginBottom: 8,
   },
   row: {
@@ -211,7 +250,7 @@ const styles = StyleSheet.create({
   card: {
     borderRadius: 14,
     overflow: 'hidden',
-    backgroundColor: colors.cream,
+    backgroundColor: 'rgba(255,248,240,0.12)',
     borderWidth: 2,
     borderColor: 'transparent',
     paddingBottom: 6,
@@ -223,20 +262,41 @@ const styles = StyleSheet.create({
   cardImg: {
     width: '100%',
     height: 72,
-    backgroundColor: '#eee',
+    backgroundColor: '#2A1840',
+  },
+  badge: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+    backgroundColor: colors.blush,
+    color: colors.cream,
+    fontFamily: fonts.bodyBold,
+    fontSize: 10,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    overflow: 'hidden',
+    borderRadius: 6,
   },
   cardName: {
     marginTop: 4,
     textAlign: 'center',
     fontFamily: fonts.bodyBold,
     fontSize: 11,
-    color: colors.ink,
+    color: colors.cream,
+  },
+  createLink: { alignSelf: 'center', marginTop: 8, marginBottom: 4 },
+  createLinkText: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 14,
+    color: colors.cream,
+    opacity: 0.85,
+    textDecorationLine: 'underline',
   },
   arenaLabel: {
-    marginTop: 10,
+    marginTop: 8,
     fontFamily: fonts.bodyBold,
     fontSize: 12,
-    color: colors.ink,
+    color: colors.cream,
     opacity: 0.5,
     letterSpacing: 1,
     textAlign: 'center',
@@ -250,28 +310,28 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 14,
-    backgroundColor: 'rgba(255,248,240,0.7)',
+    backgroundColor: 'rgba(255,248,240,0.12)',
     borderWidth: 2,
     borderColor: 'transparent',
   },
   arenaChipOn: {
     borderColor: colors.blush,
-    backgroundColor: colors.cream,
+    backgroundColor: 'rgba(255,107,157,0.25)',
   },
   arenaChipText: {
     fontFamily: fonts.bodyBold,
     fontSize: 13,
-    color: colors.ink,
-    opacity: 0.7,
+    color: colors.cream,
+    opacity: 0.75,
   },
   arenaChipTextOn: {
     opacity: 1,
-    color: colors.blush,
+    color: colors.blushSoft,
   },
   arenaTag: {
     fontFamily: fonts.body,
     fontSize: 13,
-    color: colors.ink,
+    color: colors.cream,
     opacity: 0.55,
     textAlign: 'center',
     marginBottom: 12,

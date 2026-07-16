@@ -44,6 +44,8 @@ export const FROG_PHOTO_MODULES = photos;
 export type FrogCutout = {
   map: THREE.CanvasTexture;
   aspect: number;
+  /** Sampled lower-cheek skin color for 3D bubble meshes */
+  cheekColor: string;
 };
 
 function loadImage(url: string): Promise<HTMLImageElement> {
@@ -234,6 +236,37 @@ export async function createFrogCutout(
   maxX = Math.min(w - 1, maxX + pad);
   maxY = Math.min(h - 1, maxY + pad);
 
+  // Sample cheek skin from lower-center opaque pixels (pre-crop coords)
+  let cr = 0;
+  let cg = 0;
+  let cb = 0;
+  let cn = 0;
+  const sampleY0 = Math.floor(minY + (maxY - minY) * 0.55);
+  const sampleY1 = maxY;
+  const sampleX0 = Math.floor(minX + (maxX - minX) * 0.28);
+  const sampleX1 = Math.floor(minX + (maxX - minX) * 0.72);
+  for (let y = sampleY0; y <= sampleY1; y += 2) {
+    for (let x = sampleX0; x <= sampleX1; x += 2) {
+      const i = (y * w + x) * 4;
+      if (d[i + 3] < 120) continue;
+      cr += d[i];
+      cg += d[i + 1];
+      cb += d[i + 2];
+      cn++;
+    }
+  }
+  if (cn === 0) {
+    cr = 210;
+    cg = 170;
+    cb = 150;
+    cn = 1;
+  }
+  // Push toward peachy blush for bubble-butt read
+  cr = Math.min(255, Math.round(cr / cn + 28));
+  cg = Math.min(255, Math.round(cg / cn + 8));
+  cb = Math.min(255, Math.round(cb / cn + 18));
+  const cheekColor = `rgb(${cr},${cg},${cb})`;
+
   ctx.putImageData(image, 0, 0);
   const cw = maxX - minX + 1;
   const ch = maxY - minY + 1;
@@ -252,5 +285,5 @@ export async function createFrogCutout(
   map.premultiplyAlpha = false;
   map.needsUpdate = true;
 
-  return { map, aspect: cw / Math.max(1, ch) };
+  return { map, aspect: cw / Math.max(1, ch), cheekColor };
 }

@@ -44,6 +44,7 @@ export function createFrog(
     style: 0,
     superReady: false,
     twerk: 0,
+    cheekImpulse: 0,
   };
 }
 
@@ -107,6 +108,7 @@ export function integrateFrog(frog: FrogBody, dt: number) {
       ? 0.4
       : Math.min(0.65, speed * 0.09 + frog.dashTrail * 0.35);
   frog.twerk += (targetTwerk - frog.twerk) * Math.min(1, dt * 8);
+  frog.cheekImpulse = Math.max(0, frog.cheekImpulse - dt * 1.8);
 }
 
 export function resolveCollision(a: FrogBody, b: FrogBody): number {
@@ -143,6 +145,8 @@ export function resolveCollision(a: FrogBody, b: FrogBody): number {
   b.hurtFlash = Math.min(1, impact * 0.22);
   a.dashTrail = Math.max(a.dashTrail, 0.2);
   b.dashTrail = Math.max(b.dashTrail, 0.2);
+  a.cheekImpulse = Math.min(2.5, a.cheekImpulse + impact * 0.45);
+  b.cheekImpulse = Math.min(2.5, b.cheekImpulse + impact * 0.45);
 
   return impact;
 }

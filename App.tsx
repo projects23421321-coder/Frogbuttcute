@@ -1,5 +1,5 @@
-import React, { useCallback, useState } from 'react';
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import React, { useCallback, useEffect, useState } from 'react';
+import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -10,23 +10,46 @@ import {
 } from '@expo-google-fonts/nunito';
 import { TitleScreen } from './src/components/TitleScreen';
 import { SelectScreen } from './src/components/SelectScreen';
+import { CreateFrogScreen } from './src/components/CreateFrogScreen';
 import { GameScreen } from './src/screens/GameScreen';
 import { Sfx } from './src/game/audio';
-import type { ArenaId, FrogId } from './src/game/types';
+import { getActiveCustomKit } from './src/game/customFrogStore';
+import {
+  FIGHTERS,
+  SHARE_DEFAULT_ARENA,
+  type ArenaId,
+  type FighterKit,
+  type FrogId,
+} from './src/game/types';
 import { colors } from './src/theme';
 
-type Screen = 'title' | 'select' | 'game';
+type Screen = 'title' | 'select' | 'create' | 'game';
 
 export default function App() {
   const [screen, setScreen] = useState<Screen>('title');
-  const [playerFrog, setPlayerFrog] = useState<FrogId>('peaches');
-  const [rivalFrog, setRivalFrog] = useState<FrogId>('gravelina');
-  const [arenaId, setArenaId] = useState<ArenaId>('candyDohyo');
+  const [playerKit, setPlayerKit] = useState<FighterKit>(FIGHTERS[0]);
+  const [rivalKit, setRivalKit] = useState<FighterKit>(FIGHTERS[1]);
+  const [arenaId, setArenaId] = useState<ArenaId>(SHARE_DEFAULT_ARENA);
+  const [customKit, setCustomKit] = useState<FighterKit | null>(null);
   const [fontsLoaded] = useFonts({
     Fredoka_700Bold,
     Nunito_600SemiBold,
     Nunito_800ExtraBold,
   });
+  const [bootTimedOut, setBootTimedOut] = useState(false);
+
+  useEffect(() => {
+    const id = setTimeout(() => setBootTimedOut(true), 2500);
+    return () => clearTimeout(id);
+  }, []);
+
+  useEffect(() => {
+    void getActiveCustomKit().then((k) => {
+      if (k) setCustomKit(k);
+    });
+  }, []);
+
+  const ready = fontsLoaded || bootTimedOut;
 
   const toSelect = useCallback(() => {
     Sfx.unlock();
@@ -34,22 +57,38 @@ export default function App() {
     setScreen('select');
   }, []);
 
+  const toCreate = useCallback(() => {
+    Sfx.unlock();
+    Sfx.uiTap();
+    setScreen('create');
+  }, []);
+
   const confirmFighters = useCallback(
-    (player: FrogId, rival: FrogId, arena: ArenaId) => {
-      setPlayerFrog(player);
-      setRivalFrog(rival);
+    (player: FrogId | 'custom', rival: FrogId, arena: ArenaId, kit?: FighterKit) => {
+      if (player === 'custom' && (kit || customKit)) {
+        setPlayerKit(kit ?? customKit!);
+      } else {
+        setPlayerKit(FIGHTERS.find((f) => f.frogId === player) ?? FIGHTERS[0]);
+      }
+      setRivalKit(FIGHTERS.find((f) => f.frogId === rival) ?? FIGHTERS[1]);
       setArenaId(arena);
       setScreen('game');
     },
-    [],
+    [customKit],
   );
+
+  const onCreated = useCallback((kit: FighterKit) => {
+    setCustomKit(kit);
+    setScreen('select');
+  }, []);
 
   const exit = useCallback(() => setScreen('title'), []);
 
-  if (!fontsLoaded) {
+  if (!ready) {
     return (
       <View style={styles.boot}>
         <ActivityIndicator color={colors.blush} size="large" />
+        <Text style={styles.bootText}>warming up the cheeks…</Text>
         <StatusBar style="dark" />
       </View>
     );
@@ -60,14 +99,21 @@ export default function App() {
       <GestureHandlerRootView style={styles.root}>
         <StatusBar style="dark" />
         {screen === 'title' ? (
-          <TitleScreen onPlay={toSelect} />
+          <TitleScreen onPlay={toSelect} onCreate={toCreate} heroKit={customKit ?? undefined} />
+        ) : screen === 'create' ? (
+          <CreateFrogScreen onBack={exit} onDone={onCreated} />
         ) : screen === 'select' ? (
-          <SelectScreen onBack={exit} onConfirm={confirmFighters} />
+          <SelectScreen
+            onBack={exit}
+            onConfirm={confirmFighters}
+            customKit={customKit}
+            onCreate={toCreate}
+          />
         ) : (
           <GameScreen
             onExit={exit}
-            playerFrog={playerFrog}
-            rivalFrog={rivalFrog}
+            playerKit={playerKit}
+            rivalKit={rivalKit}
             arenaId={arenaId}
           />
         )}
@@ -86,5 +132,11 @@ const styles = StyleSheet.create({
     backgroundColor: colors.skyCute,
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 12,
+  },
+  bootText: {
+    color: colors.ink,
+    opacity: 0.55,
+    fontSize: 15,
   },
 });

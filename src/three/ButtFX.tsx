@@ -2,6 +2,7 @@ import React, { useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import type { ImpactBurst } from '../game/types';
+import { getHeartTexture } from './heartTexture';
 
 const CLASH_LABELS = [
   'cheek boop!!',
@@ -45,19 +46,21 @@ function ClashBurst({ burst }: { burst: ImpactBurst }) {
   const hearts = useRef<THREE.Group>(null);
   const age = useRef(0);
   const power = Math.min(1.6, 0.55 + burst.power * 0.12);
+  const heartMap = useMemo(() => getHeartTexture(), []);
+  const count = burst.perfect ? 10 : 6;
 
   const heartOffsets = useMemo(
     () =>
-      Array.from({ length: 6 }, (_, i) => {
-        const a = (i / 6) * Math.PI * 2 + Math.random() * 0.4;
+      Array.from({ length: count }, (_, i) => {
+        const a = (i / count) * Math.PI * 2 + Math.random() * 0.4;
         return {
-          x: Math.cos(a) * (0.4 + Math.random() * 0.35),
-          z: Math.sin(a) * (0.4 + Math.random() * 0.35),
-          speed: 0.9 + Math.random() * 0.8,
-          spin: (Math.random() - 0.5) * 4,
+          x: Math.cos(a) * (0.35 + Math.random() * 0.45),
+          z: Math.sin(a) * (0.35 + Math.random() * 0.45),
+          speed: 0.95 + Math.random() * 0.9,
+          spin: (Math.random() - 0.5) * 5,
         };
       }),
-    [],
+    [count],
   );
 
   useFrame((_, dt) => {
@@ -72,11 +75,12 @@ function ClashBurst({ burst }: { burst: ImpactBurst }) {
     if (hearts.current) {
       hearts.current.children.forEach((child, i) => {
         const o = heartOffsets[i];
-        child.position.y = 0.4 + t * o.speed * 1.4;
+        if (!o) return;
+        child.position.y = 0.4 + t * o.speed * 1.5;
         child.position.x = burst.x + o.x * (1 + t);
         child.position.z = burst.y + o.z * (1 + t);
         child.rotation.z += o.spin * dt;
-        child.scale.setScalar(Math.max(0, 0.9 - t * 0.9));
+        child.scale.setScalar(Math.max(0, (burst.perfect ? 1.15 : 0.95) - t * 0.85));
       });
     }
   });
@@ -90,7 +94,7 @@ function ClashBurst({ burst }: { burst: ImpactBurst }) {
       >
         <ringGeometry args={[0.35, 0.55, 40]} />
         <meshBasicMaterial
-          color="#ffb4d0"
+          color={burst.perfect ? '#FF4D8D' : '#ffb4d0'}
           transparent
           opacity={0.7}
           side={THREE.DoubleSide}
@@ -113,14 +117,16 @@ function ClashBurst({ burst }: { burst: ImpactBurst }) {
       </mesh>
       <group ref={hearts}>
         {heartOffsets.map((_, i) => (
-          <mesh key={i} position={[burst.x, 0.5, burst.y]}>
-            <planeGeometry args={[0.28, 0.28]} />
+          <mesh key={i} position={[burst.x, 0.5, burst.y]} renderOrder={10}>
+            <planeGeometry args={[0.32, 0.32]} />
             <meshBasicMaterial
+              map={heartMap}
               color={i % 2 === 0 ? '#ff7aa8' : '#ffd0e0'}
               transparent
-              opacity={0.9}
+              opacity={0.95}
               depthWrite={false}
               side={THREE.DoubleSide}
+              alphaTest={0.12}
             />
           </mesh>
         ))}

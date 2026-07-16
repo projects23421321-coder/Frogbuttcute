@@ -32,31 +32,33 @@ import {
 } from '../game/physics';
 import {
   ARENAS,
-  FIGHTERS,
   type ArenaId,
+  type FighterKit,
   type FrogBody,
-  type FrogId,
   type ImpactBurst,
   type MatchPhase,
   type Side,
 } from '../game/types';
 import { pickClashLabel } from '../three/ButtFX';
 import { GameCanvas } from '../three/GameCanvas';
+import {
+  shareClip,
+  startHighlightCapture,
+  type ClipResult,
+} from '../game/clipCapture';
 import { colors, fonts } from '../theme';
 
 type Props = {
   onExit: () => void;
-  playerFrog: FrogId;
-  rivalFrog: FrogId;
+  playerKit: FighterKit;
+  rivalKit: FighterKit;
   arenaId: ArenaId;
 };
 
 type Floater = { id: number; text: string };
 
-export function GameScreen({ onExit, playerFrog, rivalFrog, arenaId }: Props) {
+export function GameScreen({ onExit, playerKit, rivalKit, arenaId }: Props) {
   const insets = useSafeAreaInsets();
-  const playerKit = FIGHTERS.find((f) => f.frogId === playerFrog)!;
-  const rivalKit = FIGHTERS.find((f) => f.frogId === rivalFrog)!;
   const arenaKit = ARENAS.find((a) => a.id === arenaId)!;
 
   const [phase, setPhase] = useState<MatchPhase>('countdown');
@@ -70,6 +72,8 @@ export function GameScreen({ onExit, playerFrog, rivalFrog, arenaId }: Props) {
   const [floater, setFloater] = useState<Floater | null>(null);
   const [aim, setAim] = useState<{ x: number; y: number }>({ x: 0, y: -1 });
   const [styleUi, setStyleUi] = useState(0);
+  const [lastClip, setLastClip] = useState<ClipResult | null>(null);
+  const [sharing, setSharing] = useState(false);
   const [, setTick] = useState(0);
 
   const playerRef = useRef<FrogBody>(
@@ -87,6 +91,29 @@ export function GameScreen({ onExit, playerFrog, rivalFrog, arenaId }: Props) {
   const floaterId = useRef(0);
   const hitstopRef = useRef(0);
   const lastChargeBeep = useRef(0);
+
+  const captureHighlight = useCallback(
+    (label: string) => {
+      void startHighlightCapture({
+        label,
+        names: `${playerKit.name} vs ${rivalKit.name}`,
+        durationMs: 2800,
+      }).then((clip) => {
+        if (clip) setLastClip(clip);
+      });
+    },
+    [playerKit.name, rivalKit.name],
+  );
+
+  const onShareClip = useCallback(async () => {
+    if (!lastClip) {
+      captureHighlight(message || 'BUTT CLAP');
+      return;
+    }
+    setSharing(true);
+    await shareClip(lastClip);
+    setSharing(false);
+  }, [lastClip, captureHighlight, message]);
 
   const showFloater = useCallback((text: string) => {
     const id = ++floaterId.current;
@@ -175,6 +202,7 @@ export function GameScreen({ onExit, playerFrog, rivalFrog, arenaId }: Props) {
         setPhase('matchOver');
         phaseRef.current = 'matchOver';
         showFloater(winner === 'player' ? 'THICC VICTORY' : 'RIVAL RUMP');
+        captureHighlight(winner === 'player' ? 'THICC VICTORY' : 'RIVAL RUMP');
         return;
       }
 
@@ -185,8 +213,9 @@ export function GameScreen({ onExit, playerFrog, rivalFrog, arenaId }: Props) {
       );
       setPhase('roundOver');
       phaseRef.current = 'roundOver';
+      captureHighlight(winner === 'player' ? 'RING OUT!' : 'YEETED!');
     },
-    [playerRounds, rivalRounds, showFloater],
+    [playerRounds, rivalRounds, showFloater, captureHighlight],
   );
 
   useEffect(() => {
@@ -235,9 +264,11 @@ export function GameScreen({ onExit, playerFrog, rivalFrog, arenaId }: Props) {
         const impact = resolveCollision(player, rival);
         if (impact > IMPACT_SHAKE_THRESHOLD) {
           const perfect = isPerfectClash(player, rival);
-          hitstopRef.current = Math.min(HITSTOP_MAX, 0.04 + impact * 0.02) * (perfect ? 1.4 : 1);
-          setShake(Math.min(16, impact * 3 * (perfect ? 1.3 : 1)));
-          setCameraPunch(perfect ? 0.55 : 0.28);
+          hitstopRef.current =
+            Math.min(HITSTOP_MAX, 0.05 + impact * 0.025) * (perfect ? 2.2 : 1);
+          if (perfect) hitstopRef.current = Math.max(hitstopRef.current, 0.42);
+          setShake(Math.min(18, impact * 3.2 * (perfect ? 1.45 : 1)));
+          setCameraPunch(perfect ? 0.72 : 0.3);
           addStyle(player, STYLE_PER_HIT * (perfect ? 1.6 : 1));
           addStyle(rival, STYLE_PER_HIT * 0.7);
           setStyleUi(player.style);
@@ -254,6 +285,9 @@ export function GameScreen({ onExit, playerFrog, rivalFrog, arenaId }: Props) {
           );
           showFloater(label);
           Sfx.clash(perfect);
+          if (perfect || impact > 2.2) {
+            captureHighlight(label);
+          }
           setTimeout(() => {
             setImpacts((prev) => prev.filter((b) => b.id !== id));
           }, 1100);
@@ -285,7 +319,7 @@ export function GameScreen({ onExit, playerFrog, rivalFrog, arenaId }: Props) {
       cancelAnimationFrame(raf);
       lastTs.current = null;
     };
-  }, [endRound, showFloater]);
+  }, [endRound, showFloater, captureHighlight]);
 
   const onChargeStart = useCallback(() => {
     if (phaseRef.current !== 'fighting') return;
@@ -329,6 +363,9 @@ export function GameScreen({ onExit, playerFrog, rivalFrog, arenaId }: Props) {
         if (useSuper) {
           consumeSuper(p);
           showFloater('ULTRA RUMP!!!');
+          captureHighlight('ULTRA RUMP!!!');
+          hitstopRef.current = Math.max(hitstopRef.current, 0.35);
+          setCameraPunch(0.65);
         } else {
           showFloater(p.charge > 0.75 ? 'MAXIMUM RUMP!' : 'BUTT ROCKET!');
         }
@@ -342,7 +379,7 @@ export function GameScreen({ onExit, playerFrog, rivalFrog, arenaId }: Props) {
         p.charge = 0;
       }
     },
-    [showFloater],
+    [showFloater, captureHighlight],
   );
 
   const continueMatch = () => {
@@ -435,6 +472,17 @@ export function GameScreen({ onExit, playerFrog, rivalFrog, arenaId }: Props) {
         {phase === 'roundOver' || phase === 'matchOver' ? (
           <View style={styles.banner}>
             <Text style={styles.resultTitle}>{message}</Text>
+            {phase === 'matchOver' || lastClip ? (
+              <Pressable
+                onPress={onShareClip}
+                style={styles.shareBtn}
+                disabled={sharing}
+              >
+                <Text style={styles.shareBtnText}>
+                  {sharing ? 'Sharing…' : 'Share that clap'}
+                </Text>
+              </Pressable>
+            ) : null}
             <Pressable
               onPress={phase === 'matchOver' ? rematch : continueMatch}
               style={styles.resultBtn}
@@ -591,6 +639,18 @@ const styles = StyleSheet.create({
     borderRadius: 16,
   },
   resultBtnText: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 17,
+    color: colors.cream,
+  },
+  shareBtn: {
+    marginTop: 4,
+    backgroundColor: colors.heart,
+    paddingHorizontal: 28,
+    paddingVertical: 12,
+    borderRadius: 16,
+  },
+  shareBtnText: {
     fontFamily: fonts.bodyBold,
     fontSize: 17,
     color: colors.cream,

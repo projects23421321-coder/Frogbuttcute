@@ -6,7 +6,8 @@ export type FrogId =
   | 'sinko'
   | 'marmalade'
   | 'blobbo'
-  | 'dusk';
+  | 'dusk'
+  | 'custom';
 
 export type ArenaId =
   | 'candyDohyo'
@@ -14,6 +15,20 @@ export type ArenaId =
   | 'discoPond'
   | 'snackCounter'
   | 'gravelGlam';
+
+export type AccessoryId = 'none' | 'bow' | 'shades' | 'chain';
+
+export type PhotoKey =
+  | 'peaches'
+  | 'gravelina'
+  | 'sinko'
+  | 'marmalade'
+  | 'pebble'
+  | 'blobbo'
+  | 'dusk'
+  | 'grump'
+  | 'potato'
+  | 'sandy';
 
 export type FrogPalette = {
   body: string;
@@ -43,6 +58,8 @@ export type FrogBody = {
   superReady: boolean;
   /** 0..1 twerk intensity */
   twerk: number;
+  /** Impulse for cheek springs (set on clash) */
+  cheekImpulse: number;
 };
 
 export type MatchPhase =
@@ -67,19 +84,28 @@ export type FighterKit = {
   frogId: FrogId;
   name: string;
   tagline: string;
-  photoKey:
-    | 'peaches'
-    | 'gravelina'
-    | 'sinko'
-    | 'marmalade'
-    | 'pebble'
-    | 'blobbo'
-    | 'dusk'
-    | 'grump'
-    | 'potato'
-    | 'sandy';
+  photoKey: PhotoKey;
   tint: 'none' | 'cool' | 'warm' | 'pink' | 'gold';
   cutMode: 'white' | 'ellipse';
+  /** Relative bubble-cheek size (1 = default) */
+  cheekScale?: number;
+  /** Extra jiggle multiplier (1 = default) */
+  jiggle?: number;
+  accessory?: AccessoryId;
+  /** Stable id when frogId === 'custom' */
+  customId?: string;
+};
+
+export type CustomFrog = {
+  id: string;
+  name: string;
+  tagline: string;
+  photoKey: PhotoKey;
+  tint: FighterKit['tint'];
+  cutMode: FighterKit['cutMode'];
+  cheekScale: number;
+  jiggle: number;
+  accessory: AccessoryId;
 };
 
 export type ArenaKit = {
@@ -96,6 +122,8 @@ export const FIGHTERS: FighterKit[] = [
     photoKey: 'peaches',
     tint: 'pink',
     cutMode: 'white',
+    cheekScale: 1.15,
+    jiggle: 1.1,
   },
   {
     frogId: 'gravelina',
@@ -104,6 +132,8 @@ export const FIGHTERS: FighterKit[] = [
     photoKey: 'gravelina',
     tint: 'cool',
     cutMode: 'ellipse',
+    cheekScale: 1.05,
+    jiggle: 0.95,
   },
   {
     frogId: 'sinko',
@@ -112,6 +142,9 @@ export const FIGHTERS: FighterKit[] = [
     photoKey: 'sinko',
     tint: 'warm',
     cutMode: 'ellipse',
+    cheekScale: 1.2,
+    jiggle: 1.15,
+    accessory: 'bow',
   },
   {
     frogId: 'marmalade',
@@ -120,6 +153,9 @@ export const FIGHTERS: FighterKit[] = [
     photoKey: 'marmalade',
     tint: 'gold',
     cutMode: 'white',
+    cheekScale: 1.1,
+    jiggle: 1,
+    accessory: 'chain',
   },
   {
     frogId: 'blobbo',
@@ -128,6 +164,8 @@ export const FIGHTERS: FighterKit[] = [
     photoKey: 'blobbo',
     tint: 'pink',
     cutMode: 'ellipse',
+    cheekScale: 1.35,
+    jiggle: 1.25,
   },
   {
     frogId: 'dusk',
@@ -136,6 +174,9 @@ export const FIGHTERS: FighterKit[] = [
     photoKey: 'dusk',
     tint: 'cool',
     cutMode: 'ellipse',
+    cheekScale: 1.1,
+    jiggle: 1.2,
+    accessory: 'shades',
   },
 ];
 
@@ -166,3 +207,35 @@ export const ARENAS: ArenaKit[] = [
     tagline: 'Rocks with drip.',
   },
 ];
+
+/** Preferred arenas for mute-clip silhouette */
+export const SHARE_DEFAULT_ARENA: ArenaId = 'discoPond';
+
+export function kitFromCustom(c: CustomFrog): FighterKit {
+  return {
+    frogId: 'custom',
+    customId: c.id,
+    name: c.name,
+    tagline: c.tagline,
+    photoKey: c.photoKey,
+    tint: c.tint,
+    cutMode: c.cutMode,
+    cheekScale: c.cheekScale,
+    jiggle: c.jiggle,
+    accessory: c.accessory,
+  };
+}
+
+export function defaultCustomFrog(): CustomFrog {
+  return {
+    id: `custom-${Date.now()}`,
+    name: 'Dump Truck',
+    tagline: 'Illegal levels of cheek.',
+    photoKey: 'peaches',
+    tint: 'pink',
+    cutMode: 'white',
+    cheekScale: 1.55,
+    jiggle: 1.4,
+    accessory: 'bow',
+  };
+}

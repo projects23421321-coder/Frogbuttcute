@@ -10,13 +10,16 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { TitleCanvas } from '../three/GameCanvas';
+import type { FighterKit } from '../game/types';
 import { colors, fonts } from '../theme';
 
 type Props = {
   onPlay: () => void;
+  onCreate: () => void;
+  heroKit?: FighterKit;
 };
 
-export function TitleScreen({ onPlay }: Props) {
+export function TitleScreen({ onPlay, onCreate, heroKit }: Props) {
   const insets = useSafeAreaInsets();
   const pulse = useSharedValue(1);
   const bob = useSharedValue(0);
@@ -50,7 +53,7 @@ export function TitleScreen({ onPlay }: Props) {
   return (
     <View style={styles.root}>
       <View style={styles.canvasWrap}>
-        <TitleCanvas />
+        <TitleCanvas kit={heroKit} />
       </View>
 
       <View
@@ -67,8 +70,8 @@ export function TitleScreen({ onPlay }: Props) {
           <Text style={styles.brand}>Frog but(t)</Text>
           <Text style={styles.brandStrong}>strong</Text>
           <Text style={styles.tagline}>
-            Unhinged rain-frog bubble-butt sumo.{'\n'}
-            Hearts from the cheeks. Twerk optional? Never.
+            Photo frogs. Illegal bubble cheeks.{'\n'}
+            Clash. Clip. Go viral.
           </Text>
         </Animated.View>
 
@@ -83,8 +86,12 @@ export function TitleScreen({ onPlay }: Props) {
           </Pressable>
         </Animated.View>
 
+        <Pressable onPress={onCreate} style={styles.secondary}>
+          <Text style={styles.secondaryText}>build your frog</Text>
+        </Pressable>
+
         <Text style={styles.credits}>
-          best of 3 · cheek-to-cheek · iOS & Android
+          shareable claps · custom cheeks · mute-friendly chaos
         </Text>
       </View>
     </View>
@@ -94,7 +101,7 @@ export function TitleScreen({ onPlay }: Props) {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: colors.skyCute,
+    backgroundColor: '#1A1028',
   },
   canvasWrap: {
     ...StyleSheet.absoluteFill,
@@ -114,7 +121,7 @@ const styles = StyleSheet.create({
     color: colors.cream,
     letterSpacing: -0.5,
     textAlign: 'center',
-    textShadowColor: 'rgba(58,46,40,0.45)',
+    textShadowColor: 'rgba(0,0,0,0.55)',
     textShadowRadius: 10,
   },
   brandStrong: {
@@ -123,7 +130,7 @@ const styles = StyleSheet.create({
     color: colors.blush,
     marginTop: -6,
     textAlign: 'center',
-    textShadowColor: 'rgba(58,46,40,0.35)',
+    textShadowColor: 'rgba(0,0,0,0.45)',
     textShadowRadius: 8,
   },
   tagline: {
@@ -133,8 +140,8 @@ const styles = StyleSheet.create({
     lineHeight: 24,
     color: colors.cream,
     textAlign: 'center',
-    maxWidth: 300,
-    textShadowColor: 'rgba(58,46,40,0.4)',
+    maxWidth: 320,
+    textShadowColor: 'rgba(0,0,0,0.5)',
     textShadowRadius: 6,
   },
   spacer: {
@@ -158,11 +165,24 @@ const styles = StyleSheet.create({
     fontSize: 20,
     color: colors.cream,
   },
+  secondary: {
+    alignSelf: 'center',
+    marginTop: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 18,
+  },
+  secondaryText: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 16,
+    color: colors.cream,
+    opacity: 0.85,
+    textDecorationLine: 'underline',
+  },
   credits: {
-    marginTop: 16,
+    marginTop: 14,
     fontFamily: fonts.body,
     fontSize: 13,
-    color: colors.ink,
+    color: colors.cream,
     opacity: 0.55,
     textAlign: 'center',
   },
