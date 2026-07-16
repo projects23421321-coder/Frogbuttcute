@@ -9,20 +9,36 @@ import {
   Nunito_800ExtraBold,
 } from '@expo-google-fonts/nunito';
 import { TitleScreen } from './src/components/TitleScreen';
+import { SelectScreen } from './src/components/SelectScreen';
 import { GameScreen } from './src/screens/GameScreen';
+import { Sfx } from './src/game/audio';
+import type { FrogId } from './src/game/types';
 import { colors } from './src/theme';
 
-type Screen = 'title' | 'game';
+type Screen = 'title' | 'select' | 'game';
 
 export default function App() {
   const [screen, setScreen] = useState<Screen>('title');
+  const [playerFrog, setPlayerFrog] = useState<FrogId>('sandy');
+  const [rivalFrog, setRivalFrog] = useState<FrogId>('pebble');
   const [fontsLoaded] = useFonts({
     Fredoka_700Bold,
     Nunito_600SemiBold,
     Nunito_800ExtraBold,
   });
 
-  const play = useCallback(() => setScreen('game'), []);
+  const toSelect = useCallback(() => {
+    Sfx.unlock();
+    Sfx.uiTap();
+    setScreen('select');
+  }, []);
+
+  const confirmFighters = useCallback((player: FrogId, rival: FrogId) => {
+    setPlayerFrog(player);
+    setRivalFrog(rival);
+    setScreen('game');
+  }, []);
+
   const exit = useCallback(() => setScreen('title'), []);
 
   if (!fontsLoaded) {
@@ -39,9 +55,15 @@ export default function App() {
       <GestureHandlerRootView style={styles.root}>
         <StatusBar style="dark" />
         {screen === 'title' ? (
-          <TitleScreen onPlay={play} />
+          <TitleScreen onPlay={toSelect} />
+        ) : screen === 'select' ? (
+          <SelectScreen onBack={exit} onConfirm={confirmFighters} />
         ) : (
-          <GameScreen onExit={exit} />
+          <GameScreen
+            onExit={exit}
+            playerFrog={playerFrog}
+            rivalFrog={rivalFrog}
+          />
         )}
       </GestureHandlerRootView>
     </SafeAreaProvider>

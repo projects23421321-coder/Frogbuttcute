@@ -61,7 +61,7 @@ function bgScore(r: number, g: number, b: number) {
  */
 export async function createFrogCutout(
   url: string,
-  opts: { tint?: 'none' | 'cool'; mode?: 'white' | 'ellipse' } = {},
+  opts: { tint?: 'none' | 'cool' | 'warm'; mode?: 'white' | 'ellipse' } = {},
 ): Promise<FrogCutout> {
   const img = await loadImage(url);
   const srcW = img.naturalWidth || img.width;
@@ -109,6 +109,14 @@ export async function createFrogCutout(
       if (keep[p] > 0.2) {
         d[i] = Math.round(d[i] * 0.88);
         d[i + 2] = Math.min(255, Math.round(d[i + 2] * 1.12 + 12));
+      }
+    }
+  } else if (opts.tint === 'warm') {
+    for (let p = 0, i = 0; p < keep.length; p++, i += 4) {
+      if (keep[p] > 0.2) {
+        d[i] = Math.min(255, Math.round(d[i] * 1.08 + 8));
+        d[i + 1] = Math.round(d[i + 1] * 0.98);
+        d[i + 2] = Math.round(d[i + 2] * 0.9);
       }
     }
   }

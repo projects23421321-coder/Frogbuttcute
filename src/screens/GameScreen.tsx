@@ -4,39 +4,56 @@ import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ChargePad } from '../components/ChargePad';
 import { createAiBrain, updateAi, type AiBrain } from '../game/ai';
+import { Sfx } from '../game/audio';
 import {
   CHARGE_RATE,
   DASH_POWER,
+  HITSTOP_MAX,
   IMPACT_SHAKE_THRESHOLD,
   MIN_CHARGE,
   POST_DASH_COOLDOWN,
   RING_RADIUS,
   ROUND_WINS_NEEDED,
+  STYLE_PER_DASH,
+  STYLE_PER_HIT,
+  SUPER_DASH_POWER,
 } from '../game/constants';
 import {
+  addStyle,
   applyDash,
+  consumeSuper,
   createFrog,
   integrateFrog,
   isOutsideRing,
+  isPerfectClash,
   length,
   normalize,
   resolveCollision,
 } from '../game/physics';
-import type { FrogBody, ImpactBurst, MatchPhase, Side } from '../game/types';
+import {
+  FIGHTERS,
+  type FrogBody,
+  type FrogId,
+  type ImpactBurst,
+  type MatchPhase,
+  type Side,
+} from '../game/types';
 import { pickClashLabel } from '../three/ButtFX';
 import { GameCanvas } from '../three/GameCanvas';
 import { colors, fonts } from '../theme';
 
 type Props = {
   onExit: () => void;
+  playerFrog: FrogId;
+  rivalFrog: FrogId;
 };
 
 type Floater = { id: number; text: string };
 
-export function GameScreen({ onExit }: Props) {
+export function GameScreen({ onExit, playerFrog, rivalFrog }: Props) {
   const insets = useSafeAreaInsets();
-  const cx = 0;
-  const cy = 0;
+  const playerKit = FIGHTERS.find((f) => f.frogId === playerFrog)!;
+  const rivalKit = FIGHTERS.find((f) => f.frogId === rivalFrog)!;
 
   const [phase, setPhase] = useState<MatchPhase>('countdown');
   const [countdown, setCountdown] = useState(3);
@@ -44,9 +61,11 @@ export function GameScreen({ onExit }: Props) {
   const [rivalRounds, setRivalRounds] = useState(0);
   const [message, setMessage] = useState('Butts ready');
   const [shake, setShake] = useState(0);
+  const [cameraPunch, setCameraPunch] = useState(0);
   const [impacts, setImpacts] = useState<ImpactBurst[]>([]);
   const [floater, setFloater] = useState<Floater | null>(null);
   const [aim, setAim] = useState<{ x: number; y: number }>({ x: 0, y: -1 });
+  const [styleUi, setStyleUi] = useState(0);
   const [, setTick] = useState(0);
 
   const playerRef = useRef<FrogBody>(
@@ -62,13 +81,15 @@ export function GameScreen({ onExit }: Props) {
   const lastTs = useRef<number | null>(null);
   const impactId = useRef(0);
   const floaterId = useRef(0);
+  const hitstopRef = useRef(0);
+  const lastChargeBeep = useRef(0);
 
   const showFloater = useCallback((text: string) => {
     const id = ++floaterId.current;
     setFloater({ id, text });
     setTimeout(() => {
       setFloater((f) => (f?.id === id ? null : f));
-    }, 900);
+    }, 950);
   }, []);
 
   const resetPositions = useCallback(() => {
@@ -89,6 +110,8 @@ export function GameScreen({ onExit }: Props) {
     setAim({ x: 0, y: -1 });
     roundLock.current = false;
     setImpacts([]);
+    setStyleUi(0);
+    hitstopRef.current = 0;
   }, []);
 
   const startCountdown = useCallback(
@@ -103,8 +126,9 @@ export function GameScreen({ onExit }: Props) {
   );
 
   useEffect(() => {
-    startCountdown('Round 1 — cheek to cheek');
-  }, [startCountdown]);
+    Sfx.unlock();
+    startCountdown(`${playerKit.name} vs ${rivalKit.name}`);
+  }, [startCountdown, playerKit.name, rivalKit.name]);
 
   useEffect(() => {
     if (phase !== 'countdown') return;
@@ -113,8 +137,10 @@ export function GameScreen({ onExit }: Props) {
       phaseRef.current = 'fighting';
       setMessage('BUTT BUMP!');
       showFloater('GO CHEEKS GO!');
+      Sfx.countdown(0);
       return;
     }
+    Sfx.countdown(countdown);
     const id = setTimeout(() => setCountdown((c) => c - 1), 700);
     return () => clearTimeout(id);
   }, [phase, countdown, showFloater]);
@@ -129,6 +155,9 @@ export function GameScreen({ onExit }: Props) {
       setPlayerRounds(nextPlayer);
       setRivalRounds(nextRival);
 
+      if (winner === 'player') Sfx.win();
+      else Sfx.lose();
+
       if (Platform.OS !== 'web') {
         void Haptics.notificationAsync(
           winner === 'player'
@@ -138,9 +167,7 @@ export function GameScreen({ onExit }: Props) {
       }
 
       if (nextPlayer >= ROUND_WINS_NEEDED || nextRival >= ROUND_WINS_NEEDED) {
-        setMessage(
-          winner === 'player' ? 'BUTT SUPREME!' : 'OUT-CHEEKED…',
-        );
+        setMessage(winner === 'player' ? 'BUTT SUPREME!' : 'OUT-CHEEKED…');
         setPhase('matchOver');
         phaseRef.current = 'matchOver';
         showFloater(winner === 'player' ? 'THICC VICTORY' : 'RIVAL RUMP');
@@ -148,7 +175,9 @@ export function GameScreen({ onExit }: Props) {
       }
 
       setMessage(
-        winner === 'player' ? 'You butt-bumped them out!' : 'Your cheeks got yeeted!',
+        winner === 'player'
+          ? 'You butt-bumped them out!'
+          : 'Your cheeks got yeeted!',
       );
       setPhase('roundOver');
       phaseRef.current = 'roundOver';
@@ -164,17 +193,30 @@ export function GameScreen({ onExit }: Props) {
       lastTs.current = ts;
       dt = Math.min(0.033, Math.max(0.008, dt));
 
+      if (hitstopRef.current > 0) {
+        hitstopRef.current = Math.max(0, hitstopRef.current - dt);
+        setCameraPunch((p) => Math.max(0, p - dt * 4));
+        setTick((t) => t + 1);
+        raf = requestAnimationFrame(loop);
+        return;
+      }
+
       const player = playerRef.current;
       const rival = rivalRef.current;
 
       if (phaseRef.current === 'fighting') {
         if (player.charging) {
+          const prev = player.charge;
           player.charge = Math.min(1, player.charge + CHARGE_RATE * dt);
+          if (player.charge - lastChargeBeep.current > 0.2) {
+            lastChargeBeep.current = player.charge;
+            Sfx.chargeTick(player.charge);
+          }
+          if (prev === 0) lastChargeBeep.current = 0;
           const [fx, fy] = normalize(aimRef.current.x, aimRef.current.y);
           if (fx !== 0 || fy !== 0) player.facing = Math.atan2(fy, fx);
         }
 
-        // Idle frogs face each other butt-to-butt (hilarious standoff)
         if (!player.charging && length(player.vx, player.vy) < 0.3) {
           player.facing = Math.atan2(rival.y - player.y, rival.x - player.x);
         }
@@ -182,40 +224,54 @@ export function GameScreen({ onExit }: Props) {
           rival.facing = Math.atan2(player.y - rival.y, player.x - rival.x);
         }
 
-        updateAi(aiRef.current, rival, player, cx, cy, RING_RADIUS, dt);
+        updateAi(aiRef.current, rival, player, 0, 0, RING_RADIUS, dt);
         integrateFrog(player, dt);
         integrateFrog(rival, dt);
 
         const impact = resolveCollision(player, rival);
         if (impact > IMPACT_SHAKE_THRESHOLD) {
-          setShake(Math.min(14, impact * 2.8));
+          const perfect = isPerfectClash(player, rival);
+          hitstopRef.current = Math.min(HITSTOP_MAX, 0.04 + impact * 0.02) * (perfect ? 1.4 : 1);
+          setShake(Math.min(16, impact * 3 * (perfect ? 1.3 : 1)));
+          setCameraPunch(perfect ? 0.55 : 0.28);
+          addStyle(player, STYLE_PER_HIT * (perfect ? 1.6 : 1));
+          addStyle(rival, STYLE_PER_HIT * 0.7);
+          setStyleUi(player.style);
+
           const id = ++impactId.current;
-          const label = pickClashLabel();
+          const label = perfect ? 'PERFECT CLASH!' : pickClashLabel();
           const midX = (player.x + rival.x) * 0.5;
           const midY = (player.y + rival.y) * 0.5;
           setImpacts((prev) =>
-            [...prev, { id, x: midX, y: midY, power: impact, label }].slice(-4),
+            [
+              ...prev,
+              { id, x: midX, y: midY, power: impact, label, perfect },
+            ].slice(-5),
           );
           showFloater(label);
+          Sfx.clash(perfect);
           setTimeout(() => {
             setImpacts((prev) => prev.filter((b) => b.id !== id));
-          }, 1000);
+          }, 1100);
+
           if (Platform.OS !== 'web') {
-            void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+            void Haptics.impactAsync(
+              perfect
+                ? Haptics.ImpactFeedbackStyle.Heavy
+                : Haptics.ImpactFeedbackStyle.Medium,
+            );
           }
         }
 
-        if (isOutsideRing(player, cx, cy, RING_RADIUS)) {
-          endRound('rival');
-        } else if (isOutsideRing(rival, cx, cy, RING_RADIUS)) {
-          endRound('player');
-        }
+        if (isOutsideRing(player, 0, 0, RING_RADIUS)) endRound('rival');
+        else if (isOutsideRing(rival, 0, 0, RING_RADIUS)) endRound('player');
       } else {
         integrateFrog(player, dt * 0.15);
         integrateFrog(rival, dt * 0.15);
       }
 
       setShake((s) => Math.max(0, s - dt * 18));
+      setCameraPunch((p) => Math.max(0, p - dt * 2.2));
       setTick((t) => t + 1);
       raf = requestAnimationFrame(loop);
     };
@@ -233,6 +289,8 @@ export function GameScreen({ onExit }: Props) {
     if (p.cooldown > 0) return;
     p.charging = true;
     p.charge = 0;
+    lastChargeBeep.current = 0;
+    Sfx.unlock();
   }, []);
 
   const onChargeAim = useCallback((x: number, y: number) => {
@@ -241,44 +299,57 @@ export function GameScreen({ onExit }: Props) {
     setAim({ x, y });
   }, []);
 
-  const onChargeRelease = useCallback((x: number, y: number) => {
-    if (phaseRef.current !== 'fighting') return;
-    const p = playerRef.current;
-    if (!p.charging) return;
+  const onChargeRelease = useCallback(
+    (x: number, y: number) => {
+      if (phaseRef.current !== 'fighting') return;
+      const p = playerRef.current;
+      if (!p.charging) return;
 
-    let dx = x;
-    let dy = y;
-    if (length(dx, dy) < 8) {
-      dx = aimRef.current.x;
-      dy = aimRef.current.y;
-    }
-    if (length(dx, dy) < 4) {
-      dx = 0;
-      dy = -1;
-    }
-
-    if (p.charge >= MIN_CHARGE && p.cooldown <= 0) {
-      applyDash(p, dx, dy, p.charge, DASH_POWER);
-      p.cooldown = POST_DASH_COOLDOWN;
-      showFloater(p.charge > 0.75 ? 'MAXIMUM RUMP!' : 'BUTT ROCKET!');
-      if (Platform.OS !== 'web') {
-        void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+      let dx = x;
+      let dy = y;
+      if (length(dx, dy) < 8) {
+        dx = aimRef.current.x;
+        dy = aimRef.current.y;
       }
-    } else {
-      p.charging = false;
-      p.charge = 0;
-    }
-  }, [showFloater]);
+      if (length(dx, dy) < 4) {
+        dx = 0;
+        dy = -1;
+      }
+
+      if (p.charge >= MIN_CHARGE && p.cooldown <= 0) {
+        const useSuper = p.superReady && p.charge > 0.55;
+        const power = useSuper ? SUPER_DASH_POWER : DASH_POWER;
+        applyDash(p, dx, dy, p.charge, power);
+        p.cooldown = POST_DASH_COOLDOWN;
+        addStyle(p, STYLE_PER_DASH);
+        if (useSuper) {
+          consumeSuper(p);
+          showFloater('ULTRA RUMP!!!');
+        } else {
+          showFloater(p.charge > 0.75 ? 'MAXIMUM RUMP!' : 'BUTT ROCKET!');
+        }
+        setStyleUi(p.style);
+        Sfx.dash(useSuper);
+        if (Platform.OS !== 'web') {
+          void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+        }
+      } else {
+        p.charging = false;
+        p.charge = 0;
+      }
+    },
+    [showFloater],
+  );
 
   const continueMatch = () => {
     const roundNum = playerRounds + rivalRounds + 1;
-    startCountdown(`Round ${roundNum} — more cheeks`);
+    startCountdown(`Round ${roundNum}`);
   };
 
   const rematch = () => {
     setPlayerRounds(0);
     setRivalRounds(0);
-    startCountdown('Round 1 — cheek to cheek');
+    startCountdown(`${playerKit.name} vs ${rivalKit.name}`);
   };
 
   const player = playerRef.current;
@@ -291,9 +362,12 @@ export function GameScreen({ onExit }: Props) {
           player={player}
           rival={rival}
           shake={shake}
+          cameraPunch={cameraPunch}
           mode="game"
           impacts={impacts}
           aim={aim}
+          playerKit={playerKit}
+          rivalKit={rivalKit}
         />
       </View>
 
@@ -309,6 +383,25 @@ export function GameScreen({ onExit }: Props) {
             {playerRounds} — {rivalRounds}
           </Text>
           <Text style={styles.best}>best of {ROUND_WINS_NEEDED * 2 - 1}</Text>
+        </View>
+
+        <View style={styles.styleRow}>
+          <Text style={styles.styleLabel}>
+            {player.superReady ? 'SUPER READY' : 'STYLE'}
+          </Text>
+          <View style={styles.styleTrack}>
+            <View
+              style={[
+                styles.styleFill,
+                {
+                  width: `${Math.round(styleUi * 100)}%`,
+                  backgroundColor: player.superReady
+                    ? colors.heart
+                    : colors.blush,
+                },
+              ]}
+            />
+          </View>
         </View>
 
         {floater ? (
@@ -327,7 +420,11 @@ export function GameScreen({ onExit }: Props) {
         ) : null}
 
         {phase === 'fighting' && !floater ? (
-          <Text style={styles.fightHint}>Aim the rump · release to slam</Text>
+          <Text style={styles.fightHint}>
+            {player.superReady
+              ? 'charge hard to fire ULTRA RUMP'
+              : 'aim · release · clash for style'}
+          </Text>
         ) : null}
 
         {phase === 'roundOver' || phase === 'matchOver' ? (
@@ -354,6 +451,7 @@ export function GameScreen({ onExit }: Props) {
         <ChargePad
           charge={player.charge}
           disabled={phase !== 'fighting'}
+          superReady={player.superReady}
           onChargeStart={onChargeStart}
           onChargeAim={onChargeAim}
           onChargeRelease={onChargeRelease}
@@ -400,8 +498,33 @@ const styles = StyleSheet.create({
     width: 72,
     textAlign: 'right',
   },
+  styleRow: {
+    marginTop: 10,
+    paddingHorizontal: 28,
+    alignItems: 'center',
+    gap: 4,
+  },
+  styleLabel: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 11,
+    color: colors.ink,
+    opacity: 0.55,
+    letterSpacing: 1,
+  },
+  styleTrack: {
+    width: '100%',
+    maxWidth: 220,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: 'rgba(58,46,40,0.12)',
+    overflow: 'hidden',
+  },
+  styleFill: {
+    height: '100%',
+    backgroundColor: colors.blush,
+  },
   floaterWrap: {
-    marginTop: 36,
+    marginTop: 28,
     alignSelf: 'center',
   },
   floater: {
@@ -414,10 +537,10 @@ const styles = StyleSheet.create({
     textShadowOffset: { width: 0, height: 2 },
   },
   fightHint: {
-    marginTop: 18,
+    marginTop: 14,
     alignSelf: 'center',
     fontFamily: fonts.bodyBold,
-    fontSize: 14,
+    fontSize: 13,
     color: colors.ink,
     opacity: 0.55,
     backgroundColor: 'rgba(255,248,240,0.7)',

@@ -41,6 +41,8 @@ export function createFrog(
     squish: 0,
     hurtFlash: 0,
     dashTrail: 0,
+    style: 0,
+    superReady: false,
   };
 }
 
@@ -51,6 +53,16 @@ function limitSpeed(frog: FrogBody) {
     frog.vx *= s;
     frog.vy *= s;
   }
+}
+
+export function addStyle(frog: FrogBody, amount: number) {
+  frog.style = clamp(frog.style + amount, 0, 1);
+  frog.superReady = frog.style >= 0.999;
+}
+
+export function consumeSuper(frog: FrogBody) {
+  frog.style = 0;
+  frog.superReady = false;
 }
 
 export function applyDash(
@@ -65,10 +77,10 @@ export function applyDash(
   frog.vx += nx * charge * power;
   frog.vy += ny * charge * power;
   frog.facing = Math.atan2(ny, nx);
-  frog.squish = 0.72;
+  frog.squish = 0.78;
   frog.charge = 0;
   frog.charging = false;
-  frog.dashTrail = 0.45 + charge * 0.35;
+  frog.dashTrail = 0.5 + charge * 0.4;
   limitSpeed(frog);
 }
 
@@ -134,4 +146,13 @@ export function isOutsideRing(
 ) {
   const d = length(frog.x - cx, frog.y - cy);
   return d > ringRadius - frog.radius * 0.25;
+}
+
+/** Both dashing into each other within a short window = perfect clash. */
+export function isPerfectClash(a: FrogBody, b: FrogBody) {
+  const aDash = a.dashTrail > 0.15;
+  const bDash = b.dashTrail > 0.15;
+  const closing =
+    (b.x - a.x) * (a.vx - b.vx) + (b.y - a.y) * (a.vy - b.vy) > 0;
+  return aDash && bDash && closing;
 }

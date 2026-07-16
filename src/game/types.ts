@@ -1,5 +1,7 @@
 export type Side = 'player' | 'rival';
 
+export type FrogId = 'sandy' | 'pebble' | 'blobby';
+
 export type FrogPalette = {
   body: string;
   bodyDark: string;
@@ -23,9 +25,19 @@ export type FrogBody = {
   cooldown: number;
   squish: number;
   hurtFlash: number;
-  /** Seconds of butt-dash afterimage */
   dashTrail: number;
+  style: number;
+  superReady: boolean;
 };
+
+export type MatchPhase =
+  | 'title'
+  | 'select'
+  | 'countdown'
+  | 'fighting'
+  | 'hitstop'
+  | 'roundOver'
+  | 'matchOver';
 
 export type ImpactBurst = {
   id: number;
@@ -33,24 +45,41 @@ export type ImpactBurst = {
   y: number;
   power: number;
   label: string;
+  perfect?: boolean;
 };
 
-export type MatchPhase =
-  | 'title'
-  | 'countdown'
-  | 'fighting'
-  | 'roundOver'
-  | 'matchOver';
-
-export type GameSnapshot = {
-  player: FrogBody;
-  rival: FrogBody;
-  phase: MatchPhase;
-  countdown: number;
-  playerRounds: number;
-  rivalRounds: number;
-  lastWinner: Side | null;
-  matchWinner: Side | null;
-  shake: number;
-  message: string;
+export type FighterKit = {
+  frogId: FrogId;
+  name: string;
+  tagline: string;
+  photoKey: 'player' | 'rival' | 'rivalAlt';
+  tint: 'none' | 'cool' | 'warm';
+  cutMode: 'white' | 'ellipse';
 };
+
+export const FIGHTERS: FighterKit[] = [
+  {
+    frogId: 'sandy',
+    name: 'Sandy',
+    tagline: 'Soft power. Maximum boop.',
+    photoKey: 'player',
+    tint: 'none',
+    cutMode: 'white',
+  },
+  {
+    frogId: 'pebble',
+    name: 'Pebble',
+    tagline: 'Gravel-trained cheeks.',
+    photoKey: 'rival',
+    tint: 'cool',
+    cutMode: 'ellipse',
+  },
+  {
+    frogId: 'blobby',
+    name: 'Blobby',
+    tagline: 'Built like a stress ball.',
+    photoKey: 'rivalAlt',
+    tint: 'warm',
+    cutMode: 'ellipse',
+  },
+];

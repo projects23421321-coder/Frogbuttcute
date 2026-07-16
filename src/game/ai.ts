@@ -5,8 +5,10 @@ import {
   DASH_POWER,
   MIN_CHARGE,
   POST_DASH_COOLDOWN,
+  STYLE_PER_DASH,
+  SUPER_DASH_POWER,
 } from './constants';
-import { applyDash, length, normalize } from './physics';
+import { addStyle, applyDash, consumeSuper, length, normalize } from './physics';
 import type { FrogBody } from './types';
 
 export type AiBrain = {
@@ -19,7 +21,7 @@ export type AiBrain = {
 
 export function createAiBrain(): AiBrain {
   return {
-    thinkTimer: 0.4,
+    thinkTimer: 0.35,
     targetCharge: 0.6,
     aimX: 0,
     aimY: 1,
@@ -54,7 +56,6 @@ export function updateAi(
     const toPlayerY = player.y - rival.y;
     const [towardX, towardY] = normalize(toPlayerX, toPlayerY);
 
-    // Bias toward pushing player off the nearest ring edge
     const playerFromCenterX = player.x - ringCx;
     const playerFromCenterY = player.y - ringCy;
     const edgeDist = length(playerFromCenterX, playerFromCenterY);
@@ -69,7 +70,7 @@ export function updateAi(
 
     brain.aimX = aimX;
     brain.aimY = aimY;
-    brain.targetCharge = rand(0.45, 0.95);
+    brain.targetCharge = rival.superReady ? rand(0.7, 1) : rand(0.4, 0.95);
     brain.winding = true;
     rival.charging = true;
     rival.charge = 0;
@@ -81,12 +82,16 @@ export function updateAi(
     rival.facing = Math.atan2(brain.aimY, brain.aimX);
 
     if (rival.charge >= brain.targetCharge) {
-      const power =
-        DASH_POWER * (0.85 + Math.random() * 0.2) *
-        (rival.charge < MIN_CHARGE ? 0 : 1);
       if (rival.charge >= MIN_CHARGE) {
+        const useSuper =
+          rival.superReady && rival.charge > 0.6 && Math.random() > 0.35;
+        const power =
+          (useSuper ? SUPER_DASH_POWER : DASH_POWER) *
+          (0.85 + Math.random() * 0.2);
         applyDash(rival, brain.aimX, brain.aimY, rival.charge, power);
         rival.cooldown = POST_DASH_COOLDOWN;
+        addStyle(rival, STYLE_PER_DASH);
+        if (useSuper) consumeSuper(rival);
       }
       brain.winding = false;
       brain.thinkTimer = rand(AI_THINK_MIN, AI_THINK_MAX);

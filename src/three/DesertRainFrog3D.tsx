@@ -6,8 +6,11 @@ import {
   FROG_PHOTOS,
   type FrogCutout,
 } from './frogCutout';
+import type { FighterKit } from '../game/types';
 
 type Props = {
+  kit?: FighterKit;
+  /** @deprecated prefer kit */
   variant?: 'player' | 'rival';
   squish?: number;
   charge?: number;
@@ -15,16 +18,13 @@ type Props = {
   flash?: number;
   facing?: number;
   height?: number;
-  /** Butt-dash afterimage intensity 0..1 */
   dashTrail?: number;
   speed?: number;
+  superReady?: boolean;
 };
 
-/**
- * Real rain-frog butt photo with exaggerated cute cheek jiggle.
- * Always billboards so those cheeks stay the weapon and the joke.
- */
 export function DesertRainFrog3D({
+  kit,
   variant = 'player',
   squish = 0,
   charge = 0,
@@ -33,6 +33,7 @@ export function DesertRainFrog3D({
   height = 1.5,
   dashTrail = 0,
   speed = 0,
+  superReady = false,
 }: Props) {
   const root = useRef<THREE.Group>(null);
   const body = useRef<THREE.Group>(null);
@@ -42,12 +43,24 @@ export function DesertRainFrog3D({
   const t = useRef(0);
   const [cutout, setCutout] = useState<FrogCutout | null>(null);
 
+  const resolved = useMemo(() => {
+    if (kit) return kit;
+    return {
+      frogId: variant === 'player' ? 'sandy' : 'pebble',
+      name: variant === 'player' ? 'Sandy' : 'Pebble',
+      tagline: '',
+      photoKey: variant === 'player' ? 'player' : 'rival',
+      tint: variant === 'player' ? 'none' : 'cool',
+      cutMode: variant === 'player' ? 'white' : 'ellipse',
+    } as FighterKit;
+  }, [kit, variant]);
+
   useEffect(() => {
     let alive = true;
-    const url = variant === 'player' ? FROG_PHOTOS.player : FROG_PHOTOS.rival;
+    const url = FROG_PHOTOS[resolved.photoKey];
     createFrogCutout(url, {
-      tint: variant === 'rival' ? 'cool' : 'none',
-      mode: variant === 'rival' ? 'ellipse' : 'white',
+      tint: resolved.tint,
+      mode: resolved.cutMode,
     })
       .then((c) => {
         if (alive) setCutout(c);
@@ -60,7 +73,7 @@ export function DesertRainFrog3D({
     return () => {
       alive = false;
     };
-  }, [variant]);
+  }, [resolved]);
 
   const material = useMemo(() => {
     return new THREE.MeshBasicMaterial({
@@ -101,32 +114,32 @@ export function DesertRainFrog3D({
 
     root.current.quaternion.copy(camera.quaternion);
 
-    // Cute idle: soft bounce + cheek wobble. Charge = cheeks inflate.
-    const jiggleSpeed = charging ? 14 : speed > 2 ? 18 : 5.5;
+    const jiggleSpeed = charging ? 16 : speed > 2 ? 20 : 6;
     const jiggleAmp = charging
-      ? 0.04 + charge * 0.08
-      : 0.018 + Math.min(0.06, speed * 0.01);
+      ? 0.045 + charge * 0.09
+      : 0.02 + Math.min(0.07, speed * 0.012);
     const jiggle = Math.sin(t.current * jiggleSpeed) * jiggleAmp;
-    const breathe = 1 + Math.sin(t.current * 2.1) * 0.02;
-    const cheekPump = charging ? 1 + charge * 0.22 : 1 + squish * 0.15;
-    const chargePulse = charging ? 1 + charge * 0.08 : 1;
+    const breathe = 1 + Math.sin(t.current * 2.2) * 0.022;
+    const cheekPump = charging ? 1 + charge * 0.24 : 1 + squish * 0.16;
+    const superPulse = superReady ? 1 + Math.sin(t.current * 8) * 0.04 : 1;
+    const chargePulse = charging ? 1 + charge * 0.09 : 1;
 
-    const sx = (1 + squish * 0.45) * chargePulse * cheekPump;
-    const sy = (1 - squish * 0.34) * breathe;
+    const sx = (1 + squish * 0.48) * chargePulse * cheekPump * superPulse;
+    const sy = (1 - squish * 0.36) * breathe;
 
     body.current.scale.set(sx, sy, 1);
-    // Independent cheek sway — reads as cute butt jiggle
-    cheeks.current.scale.set(1 + jiggle * 1.8, 1 - Math.abs(jiggle) * 0.6, 1);
-    cheeks.current.position.x = jiggle * 0.35;
-    cheeks.current.rotation.z = jiggle * 0.9;
+    cheeks.current.scale.set(1 + jiggle * 2, 1 - Math.abs(jiggle) * 0.7, 1);
+    cheeks.current.position.x = jiggle * 0.4;
+    cheeks.current.rotation.z = jiggle * 1.1;
 
     if (matRef.current) {
       if (flash > 0.05) {
         matRef.current.color.setRGB(1, 1 - flash * 0.12, 1 - flash * 0.22);
+      } else if (superReady) {
+        matRef.current.color.setRGB(1, 0.92, 0.98);
       } else if (charging) {
-        // Soft blush while winding up the butt slam
-        const blush = charge * 0.18;
-        matRef.current.color.setRGB(1, 1 - blush * 0.25, 1 - blush * 0.35);
+        const blush = charge * 0.2;
+        matRef.current.color.setRGB(1, 1 - blush * 0.28, 1 - blush * 0.38);
       } else {
         matRef.current.color.setRGB(1, 1, 1);
       }
@@ -140,7 +153,6 @@ export function DesertRainFrog3D({
 
   return (
     <group ref={root}>
-      {/* Dash afterimages — butt rocket trail */}
       {trail > 0.05 ? (
         <>
           <mesh
@@ -153,7 +165,7 @@ export function DesertRainFrog3D({
           </mesh>
           <mesh
             position={[0, height * 0.5, -0.36]}
-            scale={[0.8, 0.8, 1]}
+            scale={[0.78, 0.78, 1]}
             material={ghostMat}
             renderOrder={0}
           >
@@ -163,79 +175,64 @@ export function DesertRainFrog3D({
       ) : null}
 
       <group ref={body}>
-        <mesh
-          position={[0, height * 0.5, 0]}
-          material={material}
-          renderOrder={3}
-        >
+        <mesh position={[0, height * 0.5, 0]} material={material} renderOrder={3}>
           <planeGeometry args={[w, height]} />
         </mesh>
-
-        {/* Soft cheek highlight discs — sell the cute butt */}
         <group ref={cheeks} position={[0, height * 0.28, 0.02]}>
           <mesh position={[-w * 0.16, 0, 0]} renderOrder={4}>
-            <circleGeometry args={[w * 0.14, 24]} />
+            <circleGeometry args={[w * 0.15, 24]} />
             <meshBasicMaterial
-              color="#ffb7c8"
+              color={superReady ? '#FF6B9D' : '#ffb7c8'}
               transparent
-              opacity={0.22 + (charging ? charge * 0.25 : 0)}
+              opacity={0.24 + (charging ? charge * 0.28 : 0) + (superReady ? 0.2 : 0)}
               depthWrite={false}
             />
           </mesh>
           <mesh position={[w * 0.16, 0, 0]} renderOrder={4}>
-            <circleGeometry args={[w * 0.14, 24]} />
+            <circleGeometry args={[w * 0.15, 24]} />
             <meshBasicMaterial
-              color="#ffb7c8"
+              color={superReady ? '#FF6B9D' : '#ffb7c8'}
               transparent
-              opacity={0.22 + (charging ? charge * 0.25 : 0)}
+              opacity={0.24 + (charging ? charge * 0.28 : 0) + (superReady ? 0.2 : 0)}
               depthWrite={false}
             />
           </mesh>
         </group>
       </group>
 
-      {/* Ground shadow */}
-      <mesh
-        rotation={[-Math.PI / 2, 0, 0]}
-        position={[0, 0.015, 0]}
-        renderOrder={1}
-      >
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.015, 0]} renderOrder={1}>
         <circleGeometry args={[Math.max(0.22, w * 0.22), 32]} />
         <meshBasicMaterial color="#000000" transparent opacity={0.22} />
       </mesh>
 
-      {/* Charge ring = powering up the butt */}
       {charging && charge > 0.05 ? (
         <>
           <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.03, 0]}>
-            <ringGeometry
-              args={[w * 0.24, w * 0.24 + 0.08 + charge * 0.14, 48]}
-            />
+            <ringGeometry args={[w * 0.24, w * 0.24 + 0.08 + charge * 0.16, 48]} />
             <meshBasicMaterial
-              color="#ff8fb8"
+              color={superReady ? '#FF6B9D' : '#ff8fb8'}
               transparent
-              opacity={0.35 + charge * 0.45}
+              opacity={0.4 + charge * 0.45}
               side={THREE.DoubleSide}
             />
           </mesh>
-          {/* Tiny floating hearts while charging */}
           {[0, 1, 2].map((i) => {
-            const a = t.current * 2.5 + i * 2.1;
+            const a = t.current * 2.8 + i * 2.1;
             return (
               <mesh
                 key={i}
                 position={[
-                  Math.cos(a) * (0.35 + charge * 0.2),
-                  0.55 + Math.sin(a * 1.3) * 0.25 + i * 0.08,
-                  Math.sin(a) * (0.35 + charge * 0.2),
+                  Math.cos(a) * (0.38 + charge * 0.22),
+                  0.55 + Math.sin(a * 1.3) * 0.28 + i * 0.08,
+                  Math.sin(a) * (0.38 + charge * 0.22),
                 ]}
                 renderOrder={5}
               >
-                <planeGeometry args={[0.12, 0.12]} />
+                <planeGeometry args={[0.13, 0.13]} />
                 <meshBasicMaterial
                   color="#ff6b9d"
                   transparent
-                  opacity={0.4 + charge * 0.5}
+                  opacity={0.45 + charge * 0.5}
                   depthWrite={false}
                   side={THREE.DoubleSide}
                 />
@@ -243,6 +240,18 @@ export function DesertRainFrog3D({
             );
           })}
         </>
+      ) : null}
+
+      {superReady && !charging ? (
+        <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.04, 0]}>
+          <ringGeometry args={[w * 0.3, w * 0.38, 48]} />
+          <meshBasicMaterial
+            color="#FF6B9D"
+            transparent
+            opacity={0.35 + Math.sin(t.current * 8) * 0.15}
+            side={THREE.DoubleSide}
+          />
+        </mesh>
       ) : null}
     </group>
   );

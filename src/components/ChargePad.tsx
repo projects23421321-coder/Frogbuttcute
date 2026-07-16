@@ -15,6 +15,7 @@ type Props = {
   onChargeRelease: (x: number, y: number) => void;
   charge: number;
   disabled?: boolean;
+  superReady?: boolean;
 };
 
 export function ChargePad({
@@ -23,6 +24,7 @@ export function ChargePad({
   onChargeRelease,
   charge,
   disabled,
+  superReady,
 }: Props) {
   const knobX = useSharedValue(0);
   const knobY = useSharedValue(0);
@@ -62,17 +64,26 @@ export function ChargePad({
     opacity: 0.6 + active.value * 0.4,
   }));
 
-  const ringColor =
-    charge > 0.75 ? colors.heart : charge > 0.35 ? colors.blush : colors.cream;
+  const ringColor = superReady
+    ? colors.heart
+    : charge > 0.75
+      ? colors.heart
+      : charge > 0.35
+        ? colors.blush
+        : colors.cream;
 
   return (
     <View style={styles.wrap}>
       <Text style={styles.hint}>
         {disabled
           ? 'wait for it…'
-          : charge > 0.7
-            ? 'MAXIMUM CUTE POWER'
-            : 'hold · aim the booty · release to boop'}
+          : superReady && charge > 0.5
+            ? 'RELEASE — ULTRA RUMP'
+            : superReady
+              ? 'SUPER READY — charge to unleash'
+              : charge > 0.7
+                ? 'MAXIMUM CUTE POWER'
+                : 'hold · aim the booty · release to boop'}
       </Text>
       <GestureDetector gesture={gesture}>
         <View style={styles.pad}>

@@ -5,7 +5,8 @@ import * as THREE from 'three';
 import { Arena3D } from './Arena3D';
 import { DesertRainFrog3D } from './DesertRainFrog3D';
 import { ButtAimArrow, ButtClashFX } from './ButtFX';
-import type { FrogBody, ImpactBurst } from '../game/types';
+import type { FighterKit, FrogBody, ImpactBurst } from '../game/types';
+import { FIGHTERS } from '../game/types';
 import { length } from '../game/physics';
 import { RING_RADIUS } from '../game/constants';
 
@@ -21,18 +22,31 @@ type FrogView = Pick<
   | 'vx'
   | 'vy'
   | 'dashTrail'
+  | 'style'
+  | 'superReady'
 >;
 
 type Props = {
   player: FrogView;
   rival: FrogView;
   shake: number;
+  cameraPunch?: number;
   mode?: 'game' | 'title';
   impacts?: ImpactBurst[];
   aim?: { x: number; y: number } | null;
+  playerKit?: FighterKit;
+  rivalKit?: FighterKit;
 };
 
-function FollowCamera({ shake, mode }: { shake: number; mode: 'game' | 'title' }) {
+function FollowCamera({
+  shake,
+  cameraPunch = 0,
+  mode,
+}: {
+  shake: number;
+  cameraPunch?: number;
+  mode: 'game' | 'title';
+}) {
   const { camera } = useThree();
   const base = useMemo(
     () =>
@@ -54,9 +68,15 @@ function FollowCamera({ shake, mode }: { shake: number; mode: 'game' | 'title' }
       return;
     }
 
+    const punch = cameraPunch;
+    const fov = 36 - punch * 6;
+    if ('fov' in camera) {
+      (camera as THREE.PerspectiveCamera).fov = fov;
+      camera.updateProjectionMatrix();
+    }
     const sx = (Math.random() - 0.5) * shake * 0.1;
     const sy = (Math.random() - 0.5) * shake * 0.07;
-    camera.position.set(base.x + sx, base.y + sy, base.z);
+    camera.position.set(base.x + sx, base.y + sy - punch * 0.35, base.z - punch * 0.8);
     camera.lookAt(0, 0.45, 0);
   });
 
@@ -65,11 +85,11 @@ function FollowCamera({ shake, mode }: { shake: number; mode: 'game' | 'title' }
 
 function FrogActor({
   frog,
-  variant,
+  kit,
   height,
 }: {
   frog: FrogView;
-  variant: 'player' | 'rival';
+  kit: FighterKit;
   height?: number;
 }) {
   const ref = useRef<THREE.Group>(null);
@@ -83,7 +103,7 @@ function FrogActor({
   return (
     <group ref={ref}>
       <DesertRainFrog3D
-        variant={variant}
+        kit={kit}
         facing={frog.facing}
         squish={frog.squish}
         charge={frog.charge}
@@ -92,6 +112,7 @@ function FrogActor({
         height={height}
         dashTrail={frog.dashTrail}
         speed={speed}
+        superReady={frog.superReady}
       />
     </group>
   );
@@ -101,9 +122,12 @@ function SceneContents({
   player,
   rival,
   shake,
+  cameraPunch = 0,
   mode = 'game',
   impacts = [],
   aim,
+  playerKit = FIGHTERS[0],
+  rivalKit = FIGHTERS[1],
 }: Props) {
   return (
     <>
@@ -127,7 +151,7 @@ function SceneContents({
       <pointLight position={[0, 4, 0]} intensity={0.6} color="#ffe08a" distance={12} />
 
       <Environment preset="sunset" environmentIntensity={0.4} />
-      <FollowCamera shake={shake} mode={mode} />
+      <FollowCamera shake={shake} cameraPunch={cameraPunch} mode={mode} />
 
       {mode === 'game' ? (
         <>
@@ -148,8 +172,8 @@ function SceneContents({
             far={4}
             color="#8B6840"
           />
-          <FrogActor frog={player} variant="player" height={1.4} />
-          <FrogActor frog={rival} variant="rival" height={1.4} />
+          <FrogActor frog={player} kit={playerKit} height={1.4} />
+          <FrogActor frog={rival} kit={rivalKit} height={1.4} />
           <ButtClashFX bursts={impacts} />
           <ButtAimArrow
             x={player.x}
@@ -181,7 +205,7 @@ function SceneContents({
           />
           <group position={[0, 0, 0.3]}>
             <DesertRainFrog3D
-              variant="player"
+              kit={FIGHTERS[0]}
               height={2.1}
               charging
               charge={0.55}
@@ -193,14 +217,8 @@ function SceneContents({
   );
 }
 
-export function GameCanvas({
-  player,
-  rival,
-  shake,
-  mode = 'game',
-  impacts,
-  aim,
-}: Props) {
+export function GameCanvas(props: Props) {
+  const { mode = 'game' } = props;
   return (
     <Canvas
       shadows
@@ -224,14 +242,7 @@ export function GameCanvas({
         gl.shadowMap.type = THREE.PCFSoftShadowMap;
       }}
     >
-      <SceneContents
-        player={player}
-        rival={rival}
-        shake={shake}
-        mode={mode}
-        impacts={impacts}
-        aim={aim}
-      />
+      <SceneContents {...props} />
     </Canvas>
   );
 }
@@ -248,6 +259,8 @@ export function TitleCanvas() {
     vx: 0,
     vy: 0,
     dashTrail: 0,
+    style: 0,
+    superReady: false,
   };
   return <GameCanvas player={dummy} rival={dummy} shake={0} mode="title" />;
 }
