@@ -1,0 +1,13 @@
+export const FROG_RADIUS = 0.52;
+export const RING_RADIUS = 3.35;
+export const FRICTION = 0.965;
+export const BOUNCE = 0.58;
+export const DASH_POWER = 14.5;
+export const MAX_SPEED = 11;
+export const CHARGE_RATE = 1.15;
+export const MIN_CHARGE = 0.22;
+export const ROUND_WINS_NEEDED = 2;
+export const AI_THINK_MIN = 0.55;
+export const AI_THINK_MAX = 1.35;
+export const POST_DASH_COOLDOWN = 0.45;
+export const IMPACT_SHAKE_THRESHOLD = 1.2;

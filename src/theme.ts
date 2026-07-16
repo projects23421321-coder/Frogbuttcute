@@ -1,0 +1,43 @@
+export const colors = {
+  // Soft desert playground — cute, warm, not generic purple
+  canopyDeep: '#2A4A3A',
+  canopy: '#3D6B52',
+  moss: '#7CB88A',
+  leaf: '#A8D9A0',
+  clay: '#E8C99A',
+  clayDark: '#C9A06A',
+  sand: '#F5E6C8',
+  ringLine: '#FFF8EC',
+  sky: '#B8DCE8',
+  skyDeep: '#7EB8C9',
+  skyCute: '#FFE8D6',
+  ink: '#3A2E28',
+  cream: '#FFF8F0',
+  amber: '#FFB347',
+  ember: '#F07850',
+  blush: '#FF8FAB',
+  blushSoft: '#FFC2D1',
+  heart: '#FF6B9D',
+  mint: '#9ED9C5',
+  // Frogs
+  frogTan: '#C4A06A',
+  frogTanDark: '#8F6E3E',
+  frogTanDeep: '#6B4F2A',
+  frogSpot: '#E0C896',
+  frogSpotLight: '#F0E0B8',
+  frogBelly: '#E8DCC0',
+  frogBlush: '#D4A888',
+  rivalTan: '#A89274',
+  rivalTanDark: '#6F5A42',
+  rivalTanDeep: '#4A3A2A',
+  rivalSpot: '#C8B898',
+  rivalSpotLight: '#D8CCB0',
+  rivalBelly: '#D6CBB4',
+  rivalBlush: '#B89088',
+};
+
+export const fonts = {
+  display: 'Fredoka_700Bold',
+  body: 'Nunito_600SemiBold',
+  bodyBold: 'Nunito_800ExtraBold',
+};
