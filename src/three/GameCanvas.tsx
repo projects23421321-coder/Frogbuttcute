@@ -5,7 +5,7 @@ import * as THREE from 'three';
 import { Arena3D } from './Arena3D';
 import { DesertRainFrog3D } from './DesertRainFrog3D';
 import { ButtAimArrow, ButtClashFX } from './ButtFX';
-import type { FighterKit, FrogBody, ImpactBurst } from '../game/types';
+import type { ArenaId, FighterKit, FrogBody, ImpactBurst } from '../game/types';
 import { FIGHTERS } from '../game/types';
 import { length } from '../game/physics';
 import { RING_RADIUS } from '../game/constants';
@@ -24,6 +24,7 @@ type FrogView = Pick<
   | 'dashTrail'
   | 'style'
   | 'superReady'
+  | 'twerk'
 >;
 
 type Props = {
@@ -36,6 +37,15 @@ type Props = {
   aim?: { x: number; y: number } | null;
   playerKit?: FighterKit;
   rivalKit?: FighterKit;
+  arenaId?: ArenaId;
+};
+
+const ARENA_BG: Record<ArenaId, string> = {
+  candyDohyo: '#FFE8D6',
+  bubbleBath: '#D8F0FF',
+  discoPond: '#1A1028',
+  snackCounter: '#FFF0D6',
+  gravelGlam: '#E8DCC8',
 };
 
 function FollowCamera({
@@ -113,6 +123,7 @@ function FrogActor({
         dashTrail={frog.dashTrail}
         speed={speed}
         superReady={frog.superReady}
+        twerk={frog.twerk}
       />
     </group>
   );
@@ -128,17 +139,21 @@ function SceneContents({
   aim,
   playerKit = FIGHTERS[0],
   rivalKit = FIGHTERS[1],
+  arenaId = 'candyDohyo',
 }: Props) {
+  const bg = ARENA_BG[arenaId] ?? ARENA_BG.candyDohyo;
+  const sparkleColor = arenaId === 'discoPond' ? '#FF4D8D' : '#FFC2D1';
+
   return (
     <>
-      <color attach="background" args={['#FFE8D6']} />
-      <fog attach="fog" args={['#FFE8D6', 14, 32]} />
+      <color attach="background" args={[bg]} />
+      <fog attach="fog" args={[bg, 14, 32]} />
 
-      <ambientLight intensity={0.7} color="#fff5ea" />
+      <ambientLight intensity={arenaId === 'discoPond' ? 0.35 : 0.7} color="#fff5ea" />
       <directionalLight
         castShadow
         position={[4, 9, 5]}
-        intensity={2.0}
+        intensity={arenaId === 'discoPond' ? 1.2 : 2.0}
         color="#fff6e0"
         shadow-mapSize={[2048, 2048]}
         shadow-camera-far={30}
@@ -150,19 +165,22 @@ function SceneContents({
       <directionalLight position={[-4, 3, -2]} intensity={0.55} color="#ffc2d1" />
       <pointLight position={[0, 4, 0]} intensity={0.6} color="#ffe08a" distance={12} />
 
-      <Environment preset="sunset" environmentIntensity={0.4} />
+      <Environment
+        preset={arenaId === 'discoPond' ? 'night' : 'sunset'}
+        environmentIntensity={0.4}
+      />
       <FollowCamera shake={shake} cameraPunch={cameraPunch} mode={mode} />
 
       {mode === 'game' ? (
         <>
-          <Arena3D />
+          <Arena3D arenaId={arenaId} />
           <Sparkles
-            count={40}
+            count={arenaId === 'discoPond' ? 70 : 40}
             scale={[RING_RADIUS * 2.4, 2.2, RING_RADIUS * 2.4]}
             size={3}
             speed={0.25}
             opacity={0.45}
-            color="#FFC2D1"
+            color={sparkleColor}
           />
           <ContactShadows
             position={[0, 0.02, 0]}
@@ -186,7 +204,7 @@ function SceneContents({
         </>
       ) : (
         <>
-          <Arena3D />
+          <Arena3D arenaId="candyDohyo" />
           <Sparkles
             count={50}
             scale={6}
@@ -208,7 +226,8 @@ function SceneContents({
               kit={FIGHTERS[0]}
               height={2.1}
               charging
-              charge={0.55}
+              charge={0.7}
+              twerk={0.9}
             />
           </group>
         </>
@@ -253,7 +272,7 @@ export function TitleCanvas() {
     y: 0,
     facing: 0,
     squish: 0,
-    charge: 0.55,
+    charge: 0.7,
     charging: true,
     hurtFlash: 0,
     vx: 0,
@@ -261,6 +280,7 @@ export function TitleCanvas() {
     dashTrail: 0,
     style: 0,
     superReady: false,
+    twerk: 0.9,
   };
   return <GameCanvas player={dummy} rival={dummy} shake={0} mode="title" />;
 }

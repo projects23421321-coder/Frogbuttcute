@@ -1,12 +1,19 @@
 import * as THREE from 'three';
 
-// Higher-res rain-frog butt shots (real photos)
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const playerPhoto = require('../../assets/refs/frog4b.jpg'); // clean white-bg cheeks
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const rivalPhoto = require('../../assets/refs/frog3b.jpg'); // gravel cheeks
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const rivalAlt = require('../../assets/refs/frog1b.jpg');
+/* eslint-disable @typescript-eslint/no-require-imports */
+const photos = {
+  peaches: require('../../assets/refs/frog5.jpg'),
+  gravelina: require('../../assets/refs/frog6.jpg'),
+  sinko: require('../../assets/refs/frog7.jpg'),
+  marmalade: require('../../assets/refs/frog4b.jpg'),
+  pebble: require('../../assets/refs/frog3b.jpg'),
+  blobbo: require('../../assets/refs/frog1b.jpg'),
+  sandy: require('../../assets/refs/frog4b.jpg'),
+  dusk: require('../../assets/refs/frog21.jpg'),
+  grump: require('../../assets/refs/frog17.jpg'),
+  potato: require('../../assets/refs/frog15.jpg'),
+};
+/* eslint-enable @typescript-eslint/no-require-imports */
 
 function resolveAssetUrl(mod: unknown): string {
   if (typeof mod === 'string') return mod;
@@ -25,11 +32,14 @@ function resolveAssetUrl(mod: unknown): string {
   }
 }
 
-export const FROG_PHOTOS = {
-  player: resolveAssetUrl(playerPhoto),
-  rival: resolveAssetUrl(rivalPhoto),
-  rivalAlt: resolveAssetUrl(rivalAlt),
-};
+export type PhotoKey = keyof typeof photos;
+
+export const FROG_PHOTOS: Record<PhotoKey, string> = Object.fromEntries(
+  Object.entries(photos).map(([k, v]) => [k, resolveAssetUrl(v)]),
+) as Record<PhotoKey, string>;
+
+/** RN Image sources for select screen */
+export const FROG_PHOTO_MODULES = photos;
 
 export type FrogCutout = {
   map: THREE.CanvasTexture;
@@ -49,7 +59,6 @@ function loadImage(url: string): Promise<HTMLImageElement> {
 function bgScore(r: number, g: number, b: number) {
   const bright = (r + g + b) / 3;
   const chroma = Math.max(r, g, b) - Math.min(r, g, b);
-  // White / light gray studio or sink porcelain
   if (bright > 232 && chroma < 22) return 1;
   if (bright > 210 && chroma < 14) return 0.85;
   if (bright > 198 && chroma < 10) return 0.55;
@@ -57,11 +66,15 @@ function bgScore(r: number, g: number, b: number) {
 }
 
 /**
- * Real frog photo → clean transparent cutout (the character IS the photo).
+ * Cut out frog + amend: warm blush boost on lower cheeks (bubble-butt zone).
  */
 export async function createFrogCutout(
   url: string,
-  opts: { tint?: 'none' | 'cool' | 'warm'; mode?: 'white' | 'ellipse' } = {},
+  opts: {
+    tint?: 'none' | 'cool' | 'warm' | 'pink' | 'gold';
+    mode?: 'white' | 'ellipse';
+    cheekBoost?: boolean;
+  } = {},
 ): Promise<FrogCutout> {
   const img = await loadImage(url);
   const srcW = img.naturalWidth || img.width;
@@ -104,24 +117,48 @@ export async function createFrogCutout(
     }
   }
 
-  if (opts.tint === 'cool') {
-    for (let p = 0, i = 0; p < keep.length; p++, i += 4) {
-      if (keep[p] > 0.2) {
-        d[i] = Math.round(d[i] * 0.88);
-        d[i + 2] = Math.min(255, Math.round(d[i + 2] * 1.12 + 12));
+  // Tint + cheek blush amend (lower third gets peachy warmth)
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const p = y * w + x;
+      if (keep[p] < 0.15) continue;
+      const i = p * 4;
+      let r = d[i];
+      let g = d[i + 1];
+      let b = d[i + 2];
+
+      if (opts.tint === 'cool') {
+        r = Math.round(r * 0.88);
+        b = Math.min(255, Math.round(b * 1.12 + 12));
+      } else if (opts.tint === 'warm') {
+        r = Math.min(255, Math.round(r * 1.08 + 8));
+        g = Math.round(g * 0.98);
+        b = Math.round(b * 0.9);
+      } else if (opts.tint === 'pink') {
+        r = Math.min(255, Math.round(r * 1.05 + 18));
+        g = Math.round(g * 0.92);
+        b = Math.min(255, Math.round(b * 1.05 + 10));
+      } else if (opts.tint === 'gold') {
+        r = Math.min(255, Math.round(r * 1.1 + 12));
+        g = Math.min(255, Math.round(g * 1.05 + 6));
+        b = Math.round(b * 0.85);
       }
-    }
-  } else if (opts.tint === 'warm') {
-    for (let p = 0, i = 0; p < keep.length; p++, i += 4) {
-      if (keep[p] > 0.2) {
-        d[i] = Math.min(255, Math.round(d[i] * 1.08 + 8));
-        d[i + 1] = Math.round(d[i + 1] * 0.98);
-        d[i + 2] = Math.round(d[i + 2] * 0.9);
+
+      if (opts.cheekBoost !== false) {
+        const lower = Math.max(0, (y / h - 0.45) / 0.55);
+        const centerX = 1 - Math.abs(x / w - 0.5) * 1.6;
+        const cheek = lower * Math.max(0, centerX) * 0.22;
+        r = Math.min(255, Math.round(r + cheek * 55));
+        g = Math.min(255, Math.round(g + cheek * 18));
+        b = Math.min(255, Math.round(b + cheek * 28));
       }
+
+      d[i] = r;
+      d[i + 1] = g;
+      d[i + 2] = b;
     }
   }
 
-  // Smooth feather
   const soft = new Float32Array(keep);
   for (let y = 1; y < h - 1; y++) {
     for (let x = 1; x < w - 1; x++) {
@@ -140,7 +177,7 @@ export async function createFrogCutout(
     d[i] = Math.round(Math.min(1, Math.max(0, keep[p])) * 255);
   }
 
-  // RGB despill on edges (kills dark/light fringe)
+  // Despill
   for (let y = 1; y < h - 1; y++) {
     for (let x = 1; x < w - 1; x++) {
       const p = y * w + x;
@@ -170,7 +207,6 @@ export async function createFrogCutout(
     }
   }
 
-  // Tight crop to opaque pixels
   let minX = w;
   let minY = h;
   let maxX = 0;

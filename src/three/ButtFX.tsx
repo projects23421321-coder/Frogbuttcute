@@ -5,8 +5,8 @@ import type { ImpactBurst } from '../game/types';
 
 const CLASH_LABELS = [
   'cheek boop!!',
-  'soft SLAM',
-  'wiggle WHAM!',
+  'TWERK IMPACT',
+  'bubble WHAM!',
   'boingus maximus',
   'cute aggression',
   'BUTT FRIENDSHIP',
@@ -14,6 +14,11 @@ const CLASH_LABELS = [
   'peachy smash',
   'jiggle joust!',
   'no fists only cheeks',
+  'CLAP CLAP CLAP',
+  'illegal levels of cute',
+  'hearts from the cheeks',
+  'sumo but make it unhinged',
+  'certified dump truck',
 ];
 
 export function pickClashLabel() {

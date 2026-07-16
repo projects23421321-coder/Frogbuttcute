@@ -67,8 +67,8 @@ export function TitleScreen({ onPlay }: Props) {
           <Text style={styles.brand}>Frog but(t)</Text>
           <Text style={styles.brandStrong}>strong</Text>
           <Text style={styles.tagline}>
-            The cutest sumo in the desert.{'\n'}
-            Butts only. Feelings optional.
+            Unhinged rain-frog bubble-butt sumo.{'\n'}
+            Hearts from the cheeks. Twerk optional? Never.
           </Text>
         </Animated.View>
 

@@ -12,15 +12,16 @@ import { TitleScreen } from './src/components/TitleScreen';
 import { SelectScreen } from './src/components/SelectScreen';
 import { GameScreen } from './src/screens/GameScreen';
 import { Sfx } from './src/game/audio';
-import type { FrogId } from './src/game/types';
+import type { ArenaId, FrogId } from './src/game/types';
 import { colors } from './src/theme';
 
 type Screen = 'title' | 'select' | 'game';
 
 export default function App() {
   const [screen, setScreen] = useState<Screen>('title');
-  const [playerFrog, setPlayerFrog] = useState<FrogId>('sandy');
-  const [rivalFrog, setRivalFrog] = useState<FrogId>('pebble');
+  const [playerFrog, setPlayerFrog] = useState<FrogId>('peaches');
+  const [rivalFrog, setRivalFrog] = useState<FrogId>('gravelina');
+  const [arenaId, setArenaId] = useState<ArenaId>('candyDohyo');
   const [fontsLoaded] = useFonts({
     Fredoka_700Bold,
     Nunito_600SemiBold,
@@ -33,11 +34,15 @@ export default function App() {
     setScreen('select');
   }, []);
 
-  const confirmFighters = useCallback((player: FrogId, rival: FrogId) => {
-    setPlayerFrog(player);
-    setRivalFrog(rival);
-    setScreen('game');
-  }, []);
+  const confirmFighters = useCallback(
+    (player: FrogId, rival: FrogId, arena: ArenaId) => {
+      setPlayerFrog(player);
+      setRivalFrog(rival);
+      setArenaId(arena);
+      setScreen('game');
+    },
+    [],
+  );
 
   const exit = useCallback(() => setScreen('title'), []);
 
@@ -63,6 +68,7 @@ export default function App() {
             onExit={exit}
             playerFrog={playerFrog}
             rivalFrog={rivalFrog}
+            arenaId={arenaId}
           />
         )}
       </GestureHandlerRootView>

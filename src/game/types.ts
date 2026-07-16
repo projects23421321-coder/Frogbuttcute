@@ -1,6 +1,19 @@
 export type Side = 'player' | 'rival';
 
-export type FrogId = 'sandy' | 'pebble' | 'blobby';
+export type FrogId =
+  | 'peaches'
+  | 'gravelina'
+  | 'sinko'
+  | 'marmalade'
+  | 'blobbo'
+  | 'dusk';
+
+export type ArenaId =
+  | 'candyDohyo'
+  | 'bubbleBath'
+  | 'discoPond'
+  | 'snackCounter'
+  | 'gravelGlam';
 
 export type FrogPalette = {
   body: string;
@@ -28,6 +41,8 @@ export type FrogBody = {
   dashTrail: number;
   style: number;
   superReady: boolean;
+  /** 0..1 twerk intensity */
+  twerk: number;
 };
 
 export type MatchPhase =
@@ -52,34 +67,102 @@ export type FighterKit = {
   frogId: FrogId;
   name: string;
   tagline: string;
-  photoKey: 'player' | 'rival' | 'rivalAlt';
-  tint: 'none' | 'cool' | 'warm';
+  photoKey:
+    | 'peaches'
+    | 'gravelina'
+    | 'sinko'
+    | 'marmalade'
+    | 'pebble'
+    | 'blobbo'
+    | 'dusk'
+    | 'grump'
+    | 'potato'
+    | 'sandy';
+  tint: 'none' | 'cool' | 'warm' | 'pink' | 'gold';
   cutMode: 'white' | 'ellipse';
+};
+
+export type ArenaKit = {
+  id: ArenaId;
+  name: string;
+  tagline: string;
 };
 
 export const FIGHTERS: FighterKit[] = [
   {
-    frogId: 'sandy',
-    name: 'Sandy',
-    tagline: 'Soft power. Maximum boop.',
-    photoKey: 'player',
-    tint: 'none',
+    frogId: 'peaches',
+    name: 'Peaches',
+    tagline: 'Certified bubble cheeks.',
+    photoKey: 'peaches',
+    tint: 'pink',
     cutMode: 'white',
   },
   {
-    frogId: 'pebble',
-    name: 'Pebble',
-    tagline: 'Gravel-trained cheeks.',
-    photoKey: 'rival',
+    frogId: 'gravelina',
+    name: 'Gravelina',
+    tagline: 'Raised on pebbles. Built different.',
+    photoKey: 'gravelina',
     tint: 'cool',
     cutMode: 'ellipse',
   },
   {
-    frogId: 'blobby',
-    name: 'Blobby',
-    tagline: 'Built like a stress ball.',
-    photoKey: 'rivalAlt',
+    frogId: 'sinko',
+    name: 'Sinko',
+    tagline: 'Bathroom sumo royalty.',
+    photoKey: 'sinko',
     tint: 'warm',
     cutMode: 'ellipse',
+  },
+  {
+    frogId: 'marmalade',
+    name: 'Marmalade',
+    tagline: 'Sticky sweet slam.',
+    photoKey: 'marmalade',
+    tint: 'gold',
+    cutMode: 'white',
+  },
+  {
+    frogId: 'blobbo',
+    name: 'Blobbo',
+    tagline: '90% cheek. 10% attitude.',
+    photoKey: 'blobbo',
+    tint: 'pink',
+    cutMode: 'ellipse',
+  },
+  {
+    frogId: 'dusk',
+    name: 'Dusk',
+    tagline: 'Night shift twerker.',
+    photoKey: 'dusk',
+    tint: 'cool',
+    cutMode: 'ellipse',
+  },
+];
+
+export const ARENAS: ArenaKit[] = [
+  {
+    id: 'candyDohyo',
+    name: 'Candy Dohyo',
+    tagline: 'Pastel rope. Serious business.',
+  },
+  {
+    id: 'bubbleBath',
+    name: 'Bubble Bath Coliseum',
+    tagline: 'Porcelain. Bubbles. Chaos.',
+  },
+  {
+    id: 'discoPond',
+    name: 'Disco Pond',
+    tagline: 'Hearts. Lights. Cheek drops.',
+  },
+  {
+    id: 'snackCounter',
+    name: 'Snack Counter',
+    tagline: 'Crumbs optional. Victory not.',
+  },
+  {
+    id: 'gravelGlam',
+    name: 'Gravel Glam Pit',
+    tagline: 'Rocks with drip.',
   },
 ];

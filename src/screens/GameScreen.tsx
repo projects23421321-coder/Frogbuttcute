@@ -31,7 +31,9 @@ import {
   resolveCollision,
 } from '../game/physics';
 import {
+  ARENAS,
   FIGHTERS,
+  type ArenaId,
   type FrogBody,
   type FrogId,
   type ImpactBurst,
@@ -46,14 +48,16 @@ type Props = {
   onExit: () => void;
   playerFrog: FrogId;
   rivalFrog: FrogId;
+  arenaId: ArenaId;
 };
 
 type Floater = { id: number; text: string };
 
-export function GameScreen({ onExit, playerFrog, rivalFrog }: Props) {
+export function GameScreen({ onExit, playerFrog, rivalFrog, arenaId }: Props) {
   const insets = useSafeAreaInsets();
   const playerKit = FIGHTERS.find((f) => f.frogId === playerFrog)!;
   const rivalKit = FIGHTERS.find((f) => f.frogId === rivalFrog)!;
+  const arenaKit = ARENAS.find((a) => a.id === arenaId)!;
 
   const [phase, setPhase] = useState<MatchPhase>('countdown');
   const [countdown, setCountdown] = useState(3);
@@ -127,8 +131,8 @@ export function GameScreen({ onExit, playerFrog, rivalFrog }: Props) {
 
   useEffect(() => {
     Sfx.unlock();
-    startCountdown(`${playerKit.name} vs ${rivalKit.name}`);
-  }, [startCountdown, playerKit.name, rivalKit.name]);
+    startCountdown(`${playerKit.name} vs ${rivalKit.name} · ${arenaKit.name}`);
+  }, [startCountdown, playerKit.name, rivalKit.name, arenaKit.name]);
 
   useEffect(() => {
     if (phase !== 'countdown') return;
@@ -349,7 +353,7 @@ export function GameScreen({ onExit, playerFrog, rivalFrog }: Props) {
   const rematch = () => {
     setPlayerRounds(0);
     setRivalRounds(0);
-    startCountdown(`${playerKit.name} vs ${rivalKit.name}`);
+    startCountdown(`${playerKit.name} vs ${rivalKit.name} · ${arenaKit.name}`);
   };
 
   const player = playerRef.current;
@@ -368,6 +372,7 @@ export function GameScreen({ onExit, playerFrog, rivalFrog }: Props) {
           aim={aim}
           playerKit={playerKit}
           rivalKit={rivalKit}
+          arenaId={arenaId}
         />
       </View>
 

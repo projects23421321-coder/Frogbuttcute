@@ -43,6 +43,7 @@ export function createFrog(
     dashTrail: 0,
     style: 0,
     superReady: false,
+    twerk: 0,
   };
 }
 
@@ -98,6 +99,14 @@ export function integrateFrog(frog: FrogBody, dt: number) {
   frog.squish = Math.max(0, frog.squish - dt * 2.4);
   frog.hurtFlash = Math.max(0, frog.hurtFlash - dt * 3.5);
   frog.dashTrail = Math.max(0, frog.dashTrail - dt);
+
+  const speed = length(frog.vx, frog.vy);
+  const targetTwerk = frog.charging
+    ? 0.55 + frog.charge * 0.45
+    : frog.superReady
+      ? 0.4
+      : Math.min(0.65, speed * 0.09 + frog.dashTrail * 0.35);
+  frog.twerk += (targetTwerk - frog.twerk) * Math.min(1, dt * 8);
 }
 
 export function resolveCollision(a: FrogBody, b: FrogBody): number {
